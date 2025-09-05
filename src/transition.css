@@ -1,0 +1,41 @@
+/* --- Enter Animation (Fade In) --- */
+.g-enter {
+    opacity: 0;
+    transform: translateY(10px);
+}
+.g-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* --- Exit Animation (Fade Out) --- */
+.g-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+.g-exit-active {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 300ms ease-in, transform 300ms ease-in;
+}
+
+/* --- Update Animation (Highlight Flash) --- */
+@keyframes g-highlight-kf {
+    from { background-color: rgba(0, 150, 255, 0.2); }
+    to { background-color: transparent; }
+}
+.g-highlight {
+    animation: g-highlight-kf 700ms ease-out;
+}
+
+/* --- Custom Card Slide-in Transition --- */
+.card-slide-enter {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+.card-slide-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 400ms ease-out, transform 400ms ease-out;
+}
