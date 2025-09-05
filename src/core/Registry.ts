@@ -17,6 +17,8 @@ export class Registry {
         'text': () => import('../components/UiText').then(mod => ({ default: mod.UiText })),
         'loading': () => import('../components/UiLoading').then(mod => ({ default: mod.UiLoading })),
         'box': () => import('../components/UiBox').then(mod => ({ default: mod.UiBox })),
+        'button': () => import('../components/UiButton').then(mod => ({ default: mod.UiButton })),
+        'image': () => import('../components/UiImage').then(mod => ({ default: mod.UiImage })),
     };
 
     constructor() {}

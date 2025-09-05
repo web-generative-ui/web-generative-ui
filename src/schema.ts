@@ -1,3 +1,63 @@
+import type {ActionHandler} from "./core/action-handler/types.ts";
+
+export interface GenerativeUiPayload {
+    children: Children;
+}
+
+export interface SessionOptions {
+    /** The target HTML element to render the UI into. */
+    target: HTMLElement;
+    /** The SSE endpoint to connect to for receiving UI patches. */
+    streamEndpoint: string;
+    /** The default HTTP endpoint to send user actions to (for HATEOAS or unhandled actions). */
+    actionEndpoint?: string;
+    /** An optional array of modular client-side action handlers. */
+    actionHandlers?: ActionHandler[];
+    /** An optional initial UI payload to render immediately without streaming. */
+    initialPayload?: GenerativeUiPayload;
+}
+
+export interface Session {
+    /** The current state of the session's connection. */
+    readonly state: 'initializing' | 'streaming' | 'idle' | 'closed';
+    /**
+     * Programmatically sends an action and the current UI context to the backend.
+     * Useful for initiating a conversation or triggering events from outside the rendered UI.
+     * @param action The action object to send.
+     */
+    sendAction?: (action: Action) => Promise<void>;
+    /**
+     * Manually renders a full UI payload, clearing any existing content.
+     * @param payload The GenerativeUiPayload to render.
+     */
+    render: (payload: GenerativeUiPayload) => Promise<void>;
+    /**
+     * Closes the SSE connection and cleans up all event listeners.
+     * Essential for preventing memory leaks in single-page applications.
+     */
+    destroy: () => void;
+}
+
+export interface Action {
+    /**
+     * For client-side handled actions (e.g., UI changes, simple dispatches).
+     * The application's ActionDispatcher will look for a handler for this type.
+     */
+    type?: string;
+
+    /**
+     * For server-driven, HATEOAS-style actions.
+     * If present, the dispatcher will make an HTTP request to this URL.
+     */
+    href?: string;
+
+    /** The HTTP method to use with 'href'. Defaults to 'POST'. */
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+    /** Data to be sent with the action, either to the client-side handler or as the body of the HTTP request. */
+    payload?: { [key: string]: any };
+}
+
 export type PatchOperation = 'add' | 'update' | 'remove';
 
 export interface Patch {
@@ -56,14 +116,12 @@ export type Children = Component[];
 export type Component =
     | Table
     | Chart
-    | List
     | Grid
+    | Spacer
     | Timeline
     | Stream
     | Carousel
-    | Diff
     | Card
-    | Section
     | Text
     | CodeBlock
     | Image
@@ -79,8 +137,6 @@ export type Component =
     | Tabs
     | CollapseBlock
     | Reference
-    | Tooltip;
-
 
 // --- Component-Specific Interfaces ---
 
@@ -105,18 +161,15 @@ export interface Chart extends BaseComponent {
     options?: { [k: string]: any; };
 }
 
-export interface List extends BaseComponent {
-    component: 'list';
-    type: 'bullets' | 'numbers' | 'checkboxes';
-    data: any[];
-    children?: { items: (Image | Text | Badge | Link)[]; };
-}
-
 export interface Grid extends BaseComponent {
     component: 'grid';
     columns?: number | string;
     gap?: string;
-    children: { items: (Card | Image | Button | Section)[]; };
+    children: { items: (Card | Image | Button)[]; };
+}
+
+export interface Spacer extends BaseComponent {
+    component: 'spacer';
 }
 
 export interface Timeline extends BaseComponent {
@@ -153,23 +206,9 @@ export interface Carousel extends BaseComponent {
     items: (Image | Card | Video)[];
 }
 
-export interface Diff extends BaseComponent {
-    component: 'diff'; // Corrected from 'Diff' to be consistent
-    mode?: 'unified' | 'split' | 'inline';
-    language?: string;
-    before: string;
-    after: string;
-}
-
 export interface Card extends BaseComponent {
     component: 'card';
     title: string;
-    children?: { items?: Children; };
-}
-
-export interface Section extends BaseComponent {
-    component: 'section';
-    title?: string;
     children?: { items?: Children; };
 }
 
@@ -281,11 +320,4 @@ export interface Reference extends BaseComponent {
     label: string;
     target: string;
     description?: string;
-}
-
-export interface Tooltip extends BaseComponent {
-    component: 'tooltip';
-    content: string;
-    placement?: 'top' | 'right' | 'bottom' | 'left';
-    trigger: Component[];
 }

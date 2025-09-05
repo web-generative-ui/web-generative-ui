@@ -1,10 +1,10 @@
+import "./transition.css"
 import GenerativeUI from './index';
 import type { Patch } from "./schema.ts";
-import "./transition.css"
 
 async function main() {
     const registry = GenerativeUI.create();
-    const appRoot = document.getElementById('app');
+    const appRoot = document.getElementById('app'); // or replace it with the container you want to render into aside from your main UI
 
     if (!appRoot) {
         console.error("Element with ID 'app' not found.");

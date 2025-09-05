@@ -12,7 +12,7 @@ export abstract class BaseUiComponent extends HTMLElement {
     public static transitionConfig: Partial<TransitionConfig> = {};
 
     public static setRegistry(registry: Registry): void {
-        BaseUiComponent._registry = registry;
+        BaseUiComponent._registry = registry;8
     }
 
     protected constructor() {

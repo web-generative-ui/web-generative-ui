@@ -11,14 +11,11 @@ const GenerativeUI = {
         const registry = new Registry();
         const interpreter = new Interpreter(registry);
 
-        // Step 2: Link them together, breaking the circular dependency.
         registry.setInterpreter(interpreter);
 
-        // Step 3: Inject the singleton registry into the base component class.
-        // This makes it available to all UI components.
+        // Inject the singleton registry into the base component class, makes it available to all components.
         BaseUiComponent.setRegistry(registry);
 
-        // Step 4: Store the registry as the singleton instance.
         return registry;
     }
 };

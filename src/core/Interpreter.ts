@@ -62,7 +62,6 @@ export class Interpreter {
         const componentClass = element.constructor as any;
         const customConfig: Partial<TransitionConfig> = componentClass.transitionConfig || {};
 
-        // Return a merged config with defaults
         return {
             enter: customConfig.enter || 'g-enter',
             enterActive: customConfig.enterActive || 'g-enter-active',

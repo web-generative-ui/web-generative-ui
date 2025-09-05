@@ -1,0 +1,47 @@
+Layout (HIGH PRIORITY)
+
+Implement Styling & Theming (Design System Integration) (MEDIUM PRIORITY)
+Error Handling and Fallback (MEDIUM PRIORITY): Implement a fallback mechanism. The Registry could render a designated <ui-error> component in place of an unknown one,
+clearly indicating a problem in the generated UI without crashing the application.
+
+Provide Conversation Component (Text or Audio) with history support (ONGOING)
+Accessibility (ONGOING)
+
+Implement custom action handler and expose API to register actions
+
+Next component to implement
+Core Content Primitives
+
+UiImage (inline images, essential for many UIs)
+
+UiIcon (lightweight visuals, often needed for buttons and labels)
+
+Structural Elements
+
+UiDivider or UiSpacer (to manage layout separation inside Box/Card)
+
+Feedback / Status
+
+UiProgress (progress bars, complements loading)
+
+UiBadge (inline status marker, often combined with Text/Icon)
+
+Layout Enhancements
+
+UiGrid (row/column/grid layout; Box already covers flex, but Grid adds structure)
+
+Possibly UiTabs (first real composite interactive layout)
+
+Media & Rich Content
+
+UiVideo (if needed for your use case)
+
+UiCodeBlock (syntax-highlighted text, if domain requires code)
+
+Data Display Components (for later, once basics are solid)
+
+UiTable
+
+UiChart
+
+UiCarousel

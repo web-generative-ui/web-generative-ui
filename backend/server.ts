@@ -106,6 +106,32 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
             targetId: 'loader',
             value: { component: 'text', id: 'final-text', text: 'System is ready for use.' },
         });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        sendPatch({
+            op: 'add',
+            path: 'process-card',
+            value: {
+                component: 'image',
+                id: 'success-image',
+                src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2m5lrUnvYTjtpAQlMry8arqTYivCPiRYfkA&s',
+                alt: 'Setup complete illustration',
+                caption: 'All systems are operational',
+                fit: 'cover'
+            },
+        });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        sendPatch({
+            op: 'add',
+            path: 'process-card',
+            value: {
+                component: 'button',
+                id: 'continue-btn',
+                label: 'Proceed',
+                action: 'next-step'
+            },
+        });
 
         closeStream();
         res.end();
