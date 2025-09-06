@@ -19,6 +19,13 @@ export class Registry {
         'box': () => import('../components/UiBox').then(mod => ({ default: mod.UiBox })),
         'button': () => import('../components/UiButton').then(mod => ({ default: mod.UiButton })),
         'image': () => import('../components/UiImage').then(mod => ({ default: mod.UiImage })),
+        'grid': () => import('../components/UiGrid').then(mod => ({ default: mod.UiGrid })),
+        'spacer': () => import('../components/UiSpacer').then(mod => ({ default: mod.UiSpacer })),
+        'divider': () => import('../components/UiDivider').then(mod => ({ default: mod.UiDivider })),
+        'progress': () => import('../components/UiProgress').then(mod => ({ default: mod.UiProgress })),
+        'badge': () => import('../components/UiBadge').then(mod => ({ default: mod.UiBadge })),
+        'icon': () => import('../components/UiIcon').then(mod => ({ default: mod.UiIcon })),
+        'link': () => import('../components/UiLink').then(mod => ({ default: mod.UiLink })),
     };
 
     constructor() {}
