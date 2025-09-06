@@ -1,47 +1,64 @@
-Layout (HIGH PRIORITY)
-
 Implement Styling & Theming (Design System Integration) (MEDIUM PRIORITY)
+Refine Component styling & theming to match the design system
+Implement dedicated transition for each component state change
+Introduce more flexible layout mechanism
 Error Handling and Fallback (MEDIUM PRIORITY): Implement a fallback mechanism. The Registry could render a designated <ui-error> component in place of an unknown one,
 clearly indicating a problem in the generated UI without crashing the application.
-
 Provide Conversation Component (Text or Audio) with history support (ONGOING)
 Accessibility (ONGOING)
 
-Implement custom action handler and expose API to register actions
+Components to implement
+    | Table
+    | Chart
+    | Timeline
+    | Stream
+    | Carousel
+    | CodeBlock
+    | Video
+    | Tabs
+    | CollapseBlock
+    | Reference
 
-Next component to implement
-Core Content Primitives
+Goal summary
+Provide a modular conversation layer on top of the existing renderer so the library can:
+manage multi-turn LLM interactions with history [ConversationStore],
+receive streaming patches from server with model-context metadata [MCP envelope],
+support multiple transports (SSE, WebSocket, single-response fetch) via a pluggable [Transport] abstraction,
+route UI actions out to registered handlers and optionally back to the server via a callback API [ActionDispatcher],
+remain easy to upgrade and compatible with existing GenerativeUI.create() and Interpreter.applyPatch().
 
-UiImage (inline images, essential for many UIs)
+Roadmap (phased, incremental)
 
-UiIcon (lightweight visuals, often needed for buttons and labels)
+Phase 0 — Design & API spec (one document)
+Define MCPEnvelope and basic transport event shapes.
+Add ConversationStore API and persistence options.
+Design Transport interface and error/reconnect policy.
 
-Structural Elements
+Phase 1 — Transport & Facade
+Implement Transport interface and SSETransport.
+Extend index.ts facade with start() that returns conversationManager.
+Wire existing main.ts to GenerativeUI.start() (non-breaking).
 
-UiDivider or UiSpacer (to manage layout separation inside Box/Card)
+Phase 2 — ConversationManager & Store
+Implement ConversationStore (in-memory, with localStorage plugin).
+Implement ConversationManager that accepts transport and dispatches MCP messages to Interpreter.applyPatch.
+Add startConversation, sendUserMessage, getHistory.
+-----> CURRENT HERE
 
-Feedback / Status
+Phase 3 — ActionDispatcher & callbacks
+Implement ActionDispatcher with default DOM event hooking.
+Add optional server callback support via transport or HTTP.
+Add onAction hook in start() options.
 
-UiProgress (progress bars, complements loading)
+Phase 4 — WebSocketTransport & multiplexing
+Implement WebSocketTransport with support for send() and multiplexing by conversationId.
+Add transport factory and auto-fallback logic.
 
-UiBadge (inline status marker, often combined with Text/Icon)
+Phase 5 — Persistence, UI history components, and tooling
+Provide optional history UI components (e.g., UiHistoryList) that read from ConversationStore.
+Add utilities: replayConversation(convId), exportHistory(convId).
+Add tests, examples, and docs.
 
-Layout Enhancements
-
-UiGrid (row/column/grid layout; Box already covers flex, but Grid adds structure)
-
-Possibly UiTabs (first real composite interactive layout)
-
-Media & Rich Content
-
-UiVideo (if needed for your use case)
-
-UiCodeBlock (syntax-highlighted text, if domain requires code)
-
-Data Display Components (for later, once basics are solid)
-
-UiTable
-
-UiChart
-
-UiCarousel
+Phase 6 — Advanced features
+Branching replies, turn replay, multi-model session switching, server-initiated instructions (control messages).
+Access control, telemetry, instrumentation, and offline sync.
