@@ -1,14 +1,12 @@
 export const componentTagMap: { [key: string]: string } = {
     'table': 'ui-table',
     'chart': 'ui-chart',
-    'list': 'ui-list',
+    'spacer': 'ui-spacer',
     'grid': 'ui-grid',
     'timeline': 'ui-timeline',
     'stream': 'ui-stream',
     'carousel': 'ui-carousel',
-    'diff': 'ui-diff',
     'card': 'ui-card',
-    'section': 'ui-section',
     'text': 'ui-text',
     'code-block': 'ui-code-block',
     'image': 'ui-image',
@@ -24,5 +22,4 @@ export const componentTagMap: { [key: string]: string } = {
     'tabs': 'ui-tabs',
     'collapse-block': 'ui-collapse-block',
     'reference': 'ui-reference',
-    'tooltip': 'ui-tooltip',
 };
