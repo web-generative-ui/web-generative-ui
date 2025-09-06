@@ -1,62 +1,26 @@
-import type {ActionHandler} from "./core/action-handler/types.ts";
+import type {Transport, TransportOptions} from "./core/transport/types.ts";
 
 export interface GenerativeUiPayload {
     children: Children;
 }
 
-export interface SessionOptions {
-    /** The target HTML element to render the UI into. */
-    target: HTMLElement;
-    /** The SSE endpoint to connect to for receiving UI patches. */
-    streamEndpoint: string;
-    /** The default HTTP endpoint to send user actions to (for HATEOAS or unhandled actions). */
-    actionEndpoint?: string;
-    /** An optional array of modular client-side action handlers. */
-    actionHandlers?: ActionHandler[];
-    /** An optional initial UI payload to render immediately without streaming. */
-    initialPayload?: GenerativeUiPayload;
-}
-
-export interface Session {
-    /** The current state of the session's connection. */
-    readonly state: 'initializing' | 'streaming' | 'idle' | 'closed';
-    /**
-     * Programmatically sends an action and the current UI context to the backend.
-     * Useful for initiating a conversation or triggering events from outside the rendered UI.
-     * @param action The action object to send.
-     */
-    sendAction?: (action: Action) => Promise<void>;
-    /**
-     * Manually renders a full UI payload, clearing any existing content.
-     * @param payload The GenerativeUiPayload to render.
-     */
-    render: (payload: GenerativeUiPayload) => Promise<void>;
-    /**
-     * Closes the SSE connection and cleans up all event listeners.
-     * Essential for preventing memory leaks in single-page applications.
-     */
-    destroy: () => void;
-}
-
-export interface Action {
-    /**
-     * For client-side handled actions (e.g., UI changes, simple dispatches).
-     * The application's ActionDispatcher will look for a handler for this type.
-     */
-    type?: string;
-
-    /**
-     * For server-driven, HATEOAS-style actions.
-     * If present, the dispatcher will make an HTTP request to this URL.
-     */
-    href?: string;
-
-    /** The HTTP method to use with 'href'. Defaults to 'POST'. */
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-    /** Data to be sent with the action, either to the client-side handler or as the body of the HTTP request. */
-    payload?: { [key: string]: any };
-}
+export type GenerativeUIConfig = {
+    container: string | HTMLElement;
+    /** Optional: streamUrl is only required when using the legacy EventSource path. */
+    streamUrl?: string;
+    /** Accept either a ready Transport instance or transport options to create one. */
+    transport?: Transport | TransportOptions;
+    /** Clear container before first render (default: true) */
+    clearContainer?: boolean;
+    /** Pass-through options to EventSource (optional) */
+    eventSourceInit?: EventSourceInit;
+    /** Hook errors (JSON parse/apply failures) */
+    onError?: (err: unknown, raw?: string) => void;
+    /** Hook when connection established — receives either EventSource (legacy) or Transport instance */
+    onOpen?: (conn: EventSource | Transport) => void;
+    /** Hook when server signals close or error ends the stream */
+    onClose?: () => void;
+};
 
 export type PatchOperation = 'add' | 'update' | 'remove';
 
@@ -163,13 +127,18 @@ export interface Chart extends BaseComponent {
 
 export interface Grid extends BaseComponent {
     component: 'grid';
+    /** Number of columns (number for fixed, string for css value like 'repeat(auto-fit, minmax(200px, 1fr))') */
     columns?: number | string;
+    /** Gap between grid items (default 1rem) */
     gap?: string;
-    children: { items: (Card | Image | Button)[]; };
+    /** Children that can be placed inside the grid */
+    children: { items: (Card | Image | Button)[] };
 }
 
 export interface Spacer extends BaseComponent {
     component: 'spacer';
+    size?: string;
+    direction?: 'vertical' | 'horizontal';
 }
 
 export interface Timeline extends BaseComponent {
@@ -254,12 +223,15 @@ export interface Button extends BaseComponent {
     component: 'button';
     label: string;
     action?: string;
+    icon?: Icon & {
+        position?: 'left' | 'right';
+    };
 }
 
 export interface Link extends BaseComponent {
     component: 'link';
     href: string;
-    target?: '_self' | '_blank' | '_parent' | '_top';
+    target?: '_blank' | '_self' | '_parent' | '_top';
     children: { items?: (Text | Icon | Image | Badge)[]; };
 }
 

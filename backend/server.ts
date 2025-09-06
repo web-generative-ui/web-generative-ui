@@ -37,7 +37,11 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
     console.log('Client connected for SSE stream.');
 
     const sendPatch = (patch: Patch) => {
-        const data = `data: ${JSON.stringify(patch)}\n\n`;
+        const envelope = {
+            type: 'patch',
+            payload: patch
+        };
+        const data = `data: ${JSON.stringify(envelope)}\n\n`;
         res.write(data);
     };
 
@@ -108,28 +112,76 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+        // Divider before results section
         sendPatch({
             op: 'add',
-            path: 'process-card',
-            value: {
-                component: 'image',
-                id: 'success-image',
-                src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2m5lrUnvYTjtpAQlMry8arqTYivCPiRYfkA&s',
-                alt: 'Setup complete illustration',
-                caption: 'All systems are operational',
-                fit: 'cover'
-            },
+            path: 'main-box',
+            value: { component: 'divider', id: 'results-divider', orientation: 'horizontal', label: 'Results Overview' },
         });
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
+        // Spacer for layout
         sendPatch({
             op: 'add',
-            path: 'process-card',
+            path: 'main-box',
+            value: { component: 'spacer', id: 'spacer-1', size: '2rem' },
+        });
+
+        // Add Grid layout
+        sendPatch({
+            op: 'add',
+            path: 'main-box',
             value: {
-                component: 'button',
-                id: 'continue-btn',
-                label: 'Proceed',
-                action: 'next-step'
+                component: 'grid',
+                id: 'result-grid',
+                columns: 2,
+                gap: '1rem',
+                children: {
+                    items: [
+                        {
+                            component: 'image',
+                            id: 'success-image',
+                            src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2m5lrUnvYTjtpAQlMry8arqTYivCPiRYfkA&s',
+                            alt: 'Setup complete illustration',
+                            caption: 'All systems are operational',
+                            fit: 'cover'
+                        },
+                        {
+                            component: 'progress',
+                            id: 'progress-bar',
+                            value: 70,
+                            variant: 'linear',
+                            label: 'Processing',
+                            indeterminate: false,
+                        },
+                        {
+                            component: 'badge',
+                            id: 'status-badge',
+                            text: 'Stable',
+                            variant: 'success',
+                            icon: {
+                                component: 'icon',
+                                name: 'check_circle',
+                                variant: 'filled',
+                                position: 'left',
+                                size: '1em',
+                            }
+                        },
+                        {
+                            component: 'button',
+                            id: 'continue-btn',
+                            label: 'Proceed',
+                            action: 'next-step',
+                            icon: {
+                                component: 'icon',
+                                name: 'arrow_forward',
+                                variant: 'filled',
+                                position: 'right',
+                                size: '1.2em'
+                            }
+                        }
+                    ]
+                }
             },
         });
 
@@ -137,7 +189,10 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         res.end();
     };
 
-    simulateResponse();
+    simulateResponse().catch(err => {
+        console.error('Error in simulateResponse:', err);
+        res.end();
+    });
 
     req.on('close', () => {
         console.log('Client disconnected.');
