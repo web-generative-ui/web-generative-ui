@@ -1,6 +1,7 @@
 import type {Children, Component, Patch, TransitionConfig} from '../schema.ts';
 import {componentTagMap} from "./ComponentMapping.ts";
 import type {Registry} from "./Registry.ts";
+import type {Envelope} from "./transport/types.ts";
 
 /**
  * The Interpreter class is responsible for rendering and applying patches to the UI.
@@ -153,6 +154,7 @@ export class Interpreter {
      * @returns A Promise that resolves when the patch is applied.
      */
     public async applyPatch(rootElement: HTMLElement | ShadowRoot, patch: Patch): Promise<void> {
+        // existing implementation unchanged
         switch (patch.op) {
             case 'add': {
                 const newElement = await this.createComponentElement(patch.value);
@@ -178,8 +180,6 @@ export class Interpreter {
 
                 if (elementToUpdate) {
                     elementToUpdate.setAttribute('data', JSON.stringify(patch.value));
-                    // Trigger the visual highlight after the component has re-rendered its data
-                    // A microtask delay ensures the component's render cycle completes
                     queueMicrotask(() => {
                         this.animateUpdate(elementToUpdate);
                     });
@@ -199,6 +199,46 @@ export class Interpreter {
                 }
                 break;
             }
+        }
+    }
+
+    /**
+     * Handle a transport Envelope and delegate to the proper interpreter operation.
+     * @param rootElement Root to operate on.
+     * @param envelope Transport envelope.
+     */
+    public async handleEnvelope(rootElement: HTMLElement | ShadowRoot, envelope: Envelope): Promise<void> {
+        if (!envelope) return;
+
+        try {
+            switch (envelope.type) {
+                case 'patch':
+                    if (envelope.payload) {
+                        await this.applyPatch(rootElement, envelope.payload);
+                    }
+                    break;
+
+                case 'message':
+                    // Treat message payload as renderable components or children
+                    // If payload is undefined or unrecognized, do nothing
+                    if (envelope.payload) {
+                        await this.render(rootElement as any, envelope.payload);
+                    }
+                    break;
+
+                case 'control':
+                    // Simple control handling: if control carries a patch, apply it
+                    if (envelope.payload?.patch) {
+                        await this.applyPatch(rootElement, envelope.payload.patch);
+                    }
+                    // Additional control actions can be implemented here
+                    break;
+
+                default:
+                    console.warn('Unknown envelope type:', envelope.type);
+            }
+        } catch (err) {
+            console.error('Error handling envelope:', err, envelope);
         }
     }
 }
