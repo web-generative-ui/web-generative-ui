@@ -24,13 +24,17 @@ export class UiButton extends BaseUiComponent {
     }
 
     protected renderContent(): void {
-        const label = this.buttonData?.label ?? "Button";
-        const action = this.buttonData?.action ?? null;
+        if (!this.buttonData) return;
+        const { label, action, icon } = this.buttonData;
 
         this.shadow.innerHTML = `
             <style>
                 :host { display: inline-block; }
                 .btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.4em;
                     padding: 8px 16px;
                     background: #007bff;
                     color: #fff;
@@ -40,14 +44,20 @@ export class UiButton extends BaseUiComponent {
                     font-size: 14px;
                     transition: background 0.2s;
                 }
-                .btn:hover {
-                    background: #0056b3;
+                .btn:hover { background: #0056b3; }
+                .btn:active { background: #004085; }
+                .btn-icon {
+                    display: inline-flex;
+                    vertical-align: middle;
                 }
-                .btn:active {
-                    background: #004085;
-                }
+                .btn-icon-left { order: -1; }
+                .btn-icon-right { order: 1; }
             </style>
-            <button class="btn">${label}</button>
+            <button class="btn">
+                ${icon ? this.renderIcon(icon, "left") : ""}
+                <span class="btn-label">${label}</span>
+                ${icon ? this.renderIcon(icon, "right") : ""}
+            </button>
         `;
 
         const buttonEl = this.shadow.querySelector(".btn") as HTMLButtonElement;
@@ -60,5 +70,17 @@ export class UiButton extends BaseUiComponent {
                 }));
             });
         }
+    }
+
+    private renderIcon(icon: Button["icon"], position: "left" | "right"): string {
+        if (!icon || icon.position !== position) return "";
+        return `
+            <ui-icon data='${JSON.stringify({
+            component: "icon",
+            name: icon.name,
+            variant: icon.variant ?? "filled",
+            size: icon.size ?? "1em",
+        })}' class="btn-icon btn-icon-${position}"></ui-icon>
+        `;
     }
 }
