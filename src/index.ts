@@ -115,10 +115,10 @@ const GenerativeUI = {
             createConversation: (id?: string) => conversationManager.startConversation(id),
 
             // normalize string => { text } and forward to the internal API
-            sendMessage: (convId: string, msg: string | { text?: string; [k: string]: any }) =>
-                // NOTE: adapt to actual ConversationManager method name: sendUserMessage or sendMessage
-                // using sendUserMessage as per prior ConversationManager implementation:
-                conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg),
+            sendMessage: (convId: string, msg: string | { text?: string; [k: string]: any }) => {
+                conversationManager.clearContainer()
+                return conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg)
+            },
 
             // open the underlying transport (safe no-op if missing)
             connect: async () => {

@@ -11,7 +11,7 @@ export class Registry {
     private loadedComponents = new Set<string>();
     private interpreter!: Interpreter
 
-    // A map from a schema component name (e.g., "card") to a function that dynamically imports its module
+    // A map from a schema component name to a function that dynamically imports its module
     private componentLoaders: { [schemaName: string]: () => Promise<ElementModule> } = {
         'card': () => import('../components/UiCard').then(mod => ({ default: mod.UiCard })),
         'text': () => import('../components/UiText').then(mod => ({ default: mod.UiText })),
@@ -26,6 +26,14 @@ export class Registry {
         'badge': () => import('../components/UiBadge').then(mod => ({ default: mod.UiBadge })),
         'icon': () => import('../components/UiIcon').then(mod => ({ default: mod.UiIcon })),
         'link': () => import('../components/UiLink').then(mod => ({ default: mod.UiLink })),
+        'video': () => import('../components/UiVideo').then(mod => ({ default: mod.UiVideo })),
+        'tabs': () => import('../components/UiTabs').then(mod => ({ default: mod.UiTabs })),
+        'collapse-block': () => import('../components/UiCollapseBlock').then(mod => ({ default: mod.UiCollapseBlock })),
+        'carousel': () => import('../components/UiCarousel').then(mod => ({ default: mod.UiCarousel })),
+        'reference': () => import('../components/UiReference').then(mod => ({ default: mod.UiReference })),
+        'timeline': () => import('../components/UiTimeline').then(mod => ({ default: mod.UiTimeline })),
+        'stream': () => import('../components/UiStream').then(mod => ({ default: mod.UiStream })),
+        'table': () => import('../components/UiTable').then(mod => ({ default: mod.UiTable })),
     };
 
     constructor() {}

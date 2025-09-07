@@ -64,11 +64,7 @@ export abstract class BaseUiComponent extends HTMLElement {
      * Called when the element is connected to the DOM.
      */
     connectedCallback(): void {
-        // Only attach shadow DOM if it hasn't been done by the constructor
-        if (!this.shadow && !this.shadowRoot) {
-            this.attachShadow({ mode: 'open' });
-            this.shadow = this.shadowRoot!;
-        }
+        this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
 
         if (!this.hasParsedData() && this.hasAttribute('data')) {
             this.parseData(this.getAttribute('data')!);

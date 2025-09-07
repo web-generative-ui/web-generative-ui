@@ -38,6 +38,10 @@ export class ConversationManager {
         return await this.store.createConversation(id);
     }
 
+    clearContainer() {
+        this.rootEl.innerHTML = '';
+    }
+
     async sendMessage(convId: string, message: { text?: string; [k: string]: any }): Promise<void> {
         const turnId = Math.random().toString(36).substring(2, 15);
         const envelope = {
