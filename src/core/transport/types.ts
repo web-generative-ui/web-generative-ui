@@ -19,19 +19,21 @@ export interface ReconnectPolicy {
 
 // Base for the transport options. The 'type' is the discriminant.
 export interface TransportOptionsBase {
-    url: string;
     reconnectPolicy?: ReconnectPolicy;
 }
 
 // Specific transport options interfaces, each with a unique 'type' literal.
 export interface SSETransportOptions extends TransportOptionsBase {
+    streamURL: string;
+    sendURL: string;
     type: 'sse';
     withCredentials?: boolean;
     headers?: Record<string, string>;
 }
 
 export interface WebSocketTransportOptions extends TransportOptionsBase {
-    type: 'websocket';
+    url: string;
+    type?: 'websocket';
     heartbeatInterval?: number;
     timeout?: number;
 }
@@ -95,6 +97,8 @@ interface TransportOpenEvent {
 
 interface TransportCloseEvent {
     type: 'close';
+    code?: number;
+    reason?: string;
 }
 
 interface TransportErrorEvent {

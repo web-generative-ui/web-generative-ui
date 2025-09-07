@@ -1,7 +1,9 @@
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
-import { Request, Response } from 'express';
+import {Request, Response} from 'express';
+import {WebSocketServer, WebSocket} from 'ws';
+import http from 'http';
 
 const app = express();
 const PORT = 3000;
@@ -13,20 +15,20 @@ app.use(cors({
 }));
 
 type PatchOperation = 'add' | 'update' | 'remove';
+
 interface Component {
     component: string;
     id?: string;
+
     [key: string]: any;
 }
+
 interface Patch {
     op: PatchOperation;
     path?: string | null;
     targetId?: string;
     value?: Component;
 }
-
-const frontendPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(frontendPath));
 
 app.get('/api/llm-stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -54,7 +56,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: null,
-            value: { component: 'box', id: 'main-box' },
+            value: {component: 'box', id: 'main-box'},
         });
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -62,7 +64,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: 'main-box',
-            value: { component: 'card', id: 'process-card', title: '⚡ Initializing...' },
+            value: {component: 'card', id: 'process-card', title: '⚡ Initializing...'},
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -70,7 +72,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: 'process-card',
-            value: { component: 'text', id: 'status-text', text: 'Setting up environment...' },
+            value: {component: 'text', id: 'status-text', text: 'Setting up environment...'},
         });
         await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -78,7 +80,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'update',
             targetId: 'status-text',
-            value: { component: 'text', id: 'status-text', text: 'Loading resources...' },
+            value: {component: 'text', id: 'status-text', text: 'Loading resources...'},
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -86,7 +88,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: 'process-card',
-            value: { component: 'loading', id: 'loader', variant: 'dots' },
+            value: {component: 'loading', id: 'loader', variant: 'dots'},
         });
         await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -94,7 +96,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'update',
             targetId: 'process-card',
-            value: { component: 'card', id: 'process-card', title: '✅ Setup Complete' },
+            value: {component: 'card', id: 'process-card', title: '✅ Setup Complete'},
         });
 
         // Remove the old status text
@@ -108,7 +110,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'update',
             targetId: 'loader',
-            value: { component: 'text', id: 'final-text', text: 'System is ready for use.' },
+            value: {component: 'text', id: 'final-text', text: 'System is ready for use.'},
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -116,7 +118,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: 'main-box',
-            value: { component: 'divider', id: 'results-divider', orientation: 'horizontal', label: 'Results Overview' },
+            value: {component: 'divider', id: 'results-divider', orientation: 'horizontal', label: 'Results Overview'},
         });
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -124,7 +126,7 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
         sendPatch({
             op: 'add',
             path: 'main-box',
-            value: { component: 'spacer', id: 'spacer-1', size: '2rem' },
+            value: {component: 'spacer', id: 'spacer-1', size: '2rem'},
         });
 
         // Add Grid layout
@@ -200,10 +202,128 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
     });
 });
 
-app.get('*', (req, res) => {
+app.use(express.json()); // ensure JSON body parsing
+
+app.post('/api/llm-message', (req: Request, res: Response) => {
+    const envelope = req.body;
+    console.log('📩 Received user message:', envelope);
+
+    // For testing: respond immediately with a fake patch back into SSE
+    // In a real setup, you'd push this into your LLM pipeline and stream back results.
+    // For now, just log and return 200.
+    res.status(200).json({status: 'ok'});
+});
+
+// --- static frontend (if any) ---
+const frontendPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(frontendPath));
+app.get('*', (_, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
+// --- Create HTTP server and attach WebSocket server ---
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({noServer: true});
+
+// Handle WebSocket connections
+wss.on('connection', (ws: WebSocket, req) => {
+    console.log('WebSocket client connected:', req.socket.remoteAddress);
+
+    ws.on('message', (data) => {
+        try {
+            const envelope = JSON.parse(data.toString());
+            console.log('WS recv:', envelope);
+
+            const convId = envelope?.convId ?? 'unknown-conv';
+
+            // 1) immediate ACK message envelope (assistant message)
+            const ackEnvelope = {
+                type: 'message',
+                convId,
+                turnId: 'srv-ack-' + Date.now(),
+                payload: {
+                    role: 'assistant',
+                    content: {text: `SERVER: Acknowledged: ${String(envelope?.payload?.content?.text ?? '')}`}
+                }
+            };
+            ws.send(JSON.stringify(ackEnvelope));
+
+            // send an initial patch that adds a small text element (client will render via Interpreter)
+            const initialTextPatch = {
+                op: 'add',
+                path: null, // append to root, or use a per-conv container id
+                value: {
+                    component: 'text',
+                    id: `text-${convId}-${Date.now()}`,
+                    text: `Acknowledged: ${String(envelope?.payload?.content?.text ?? '')}`,
+                    meta: {convId, role: 'assistant'}
+                }
+            };
+            ws.send(JSON.stringify({type: 'patch', convId, payload: initialTextPatch}));
+
+            // continue with UI patches (cards, updates) — exactly like your SSE simulateResponse
+            setTimeout(() => {
+                const patch1 = {
+                    op: 'add',
+                    path: null,
+                    value: {component: 'card', id: `card-${convId}`, title: 'Processing...'}
+                };
+                ws.send(JSON.stringify({type: 'patch', convId, payload: patch1}));
+            }, 300);
+
+            setTimeout(() => {
+                const patch2 = {
+                    op: 'update',
+                    targetId: `card-${convId}`,
+                    value: {component: 'card', id: `card-${convId}`, title: '✅ Done'}
+                };
+                ws.send(JSON.stringify({type: 'patch', convId, payload: patch2}));
+            }, 900);
+
+            setTimeout(() => {
+                const finalMessage = {
+                    type: 'message',
+                    convId,
+                    turnId: 'srv-final-' + Date.now(),
+                    payload: {
+                        role: 'assistant',
+                        content: {text: 'Here are the results (mock).'}
+                    }
+                };
+                ws.send(JSON.stringify(finalMessage));
+            }, 1400);
+
+        } catch (err) {
+            console.error('Failed to parse WS message', err);
+            ws.send(JSON.stringify({type: 'control', convId: 'unknown', payload: {error: 'bad_request'}}));
+        }
+    });
+
+    ws.on('close', (code, reason) => {
+        console.log('WS client disconnected', code, reason?.toString());
+    });
+
+    ws.on('error', (err) => {
+        console.error('WS error', err);
+    });
+});
+
+// Integrate ws upgrade handling on HTTP server
+server.on('upgrade', (request, socket, head) => {
+    // route path /ws (change if you prefer another path)
+    const {url} = request;
+    if (url === '/ws') {
+        wss.handleUpgrade(request, socket as any, head, (ws) => {
+            wss.emit('connection', ws, request);
+        });
+    } else {
+        socket.destroy();
+    }
+});
+
+// Start server
+server.listen(PORT, () => {
     console.log(`🚀 Backend server listening on http://localhost:${PORT}`);
+    console.log(`WS path available at ws://localhost:${PORT}/ws`);
 });

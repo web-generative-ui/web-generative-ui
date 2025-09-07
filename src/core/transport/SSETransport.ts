@@ -18,7 +18,8 @@ export class SSETransport implements Transport{
             ...options,
             reconnectPolicy: DEFAULT_RECONNECT_POLICY,
             withCredentials: false,
-            url: options.url,
+            streamURL: options.streamURL,
+            sendURL: options.sendURL
         };
     }
 
@@ -34,10 +35,10 @@ export class SSETransport implements Transport{
         }
 
         try {
-            if (!this.options.url) {
+            if (!this.options.sendURL) {
                 throw new Error('SSE URL is not configured');
             }
-            const response = await fetch(this.options.url, {
+            const response = await fetch(this.options.sendURL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -65,10 +66,10 @@ export class SSETransport implements Transport{
         }
 
         try {
-            if (!this.options.url) {
+            if (!this.options.streamURL) {
                 throw new Error('SSE URL is not configured');
             }
-            this.eventSource = new EventSource(this.options.url, {
+            this.eventSource = new EventSource(this.options.streamURL, {
                 withCredentials: this.options.withCredentials
             });
 

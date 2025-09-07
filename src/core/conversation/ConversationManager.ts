@@ -1,12 +1,14 @@
 import type {Interpreter} from "../Interpreter.ts";
 import type {Transport} from "../transport/types.ts";
 import type {ConversationStore} from "./ConversationStore.ts";
+import type {Patch} from "../../schema.ts";
 
 export class ConversationManager {
     private interpreter: Interpreter;
     private readonly rootEl: HTMLElement | ShadowRoot;
     private readonly transport?: Transport;
     private store: ConversationStore;
+    private convContainers: Set<string> = new Set<string>();
 
     constructor(interpreter: Interpreter, rootEl: HTMLElement | ShadowRoot, store: ConversationStore, transport?: Transport) {
         this.interpreter = interpreter;
@@ -28,11 +30,15 @@ export class ConversationManager {
         }
     }
 
+    /**
+     * Ensure there is a conversation in the store and create a UI container for it.
+     * Returns the convId.
+     */
     async startConversation(id?: string): Promise<string> {
-        return this.store.createConversation(id);
+        return await this.store.createConversation(id);
     }
 
-    async sendUserMessage(convId: string, message: { text?: string; [k: string]: any }): Promise<void> {
+    async sendMessage(convId: string, message: { text?: string; [k: string]: any }): Promise<void> {
         const turnId = Math.random().toString(36).substring(2, 15);
         const envelope = {
             type: 'message',
@@ -59,28 +65,163 @@ export class ConversationManager {
         }
     }
 
-    async getHistory(convId: string, opts: { limit?: number; fromTurnId?: string } = {}) {
+    async getMessages(convId: string, opts: { limit?: number; fromTurnId?: string } = {}) {
         return this.store.getHistory(convId, opts);
     }
 
+    /**
+     * Central routing for incoming envelopes.
+     * - Accepts envelopes of type 'patch' | 'message' | 'control'
+     * - Converts plain message envelopes to patch envelopes that the Interpreter can render
+     * - Persists both original and derived envelopes via store.appendFromEnvelope
+     */
     async handleIncomingEnvelope(envelope: any): Promise<void> {
         if (!envelope) return;
 
-        // persist when appropriate
+        // persist the original envelope when appropriate
         try {
             await this.store.appendFromEnvelope(envelope);
         } catch (err) {
             console.error('Failed to append incoming envelope to store', err);
         }
 
-        // route to interpreter
-        try {
-            if (envelope.type === 'patch') {
-                if (envelope.payload) await this.interpreter.applyPatch(this.rootEl, envelope.payload);
+        // helper: get or create conversation container id
+        const getConvContainerId = (convId: string) => `conv-${convId}`;
+
+        // helper: convert a plain message envelope (string or simple object) to a Patch envelope
+        const messageToPatchEnvelope = (env: any) => {
+            const convId = env.convId ?? `conv-${Date.now()}`;
+            const role = env.payload?.role ?? env.payload?.content?.role ?? 'assistant';
+            const rawContent = env.payload?.content;
+            let value: any;
+
+            // If payload.content already looks like a UI schema (has .component), use it as-is
+            if (rawContent && typeof rawContent === 'object' && rawContent.component) {
+                value = { ...rawContent };
             } else {
-                // let interpreter handle other envelope types (message, control)
-                await this.interpreter.handleEnvelope(this.rootEl, envelope);
+                // Otherwise render plain text via a text component
+                const text =
+                    typeof rawContent === 'string'
+                        ? rawContent
+                        : rawContent?.text ?? String(rawContent ?? '');
+                value = {
+                    component: 'text',
+                    id: `text-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`,
+                    text,
+                    meta: { role, convId },
+                };
             }
+
+            // Put the derived patch into the per-conversation container if present
+            const path = this.convContainers.has(convId) ? getConvContainerId(convId) : null;
+
+            const patch: Patch = {
+                op: 'add',
+                path,
+                value,
+            };
+
+            return {
+                type: 'patch',
+                convId,
+                payload: patch,
+            };
+        };
+
+        try {
+            // ----- PATCH: apply directly -----
+            if (envelope.type === 'patch') {
+                if (envelope.payload) {
+                    await this.interpreter.applyPatch(this.rootEl, envelope.payload);
+                }
+                return;
+            }
+
+            // ----- CONTROL: handle lifecycle events -----
+            if (envelope.type === 'control') {
+                const convId = envelope.convId ?? `conv-${Date.now()}`;
+                const event = envelope.payload?.event;
+
+                // conversation started -> create a per-conversation container (box)
+                if (event === 'conversation_started') {
+                    const containerId = getConvContainerId(convId);
+
+                    // avoid duplicate creation
+                    if (!this.convContainers.has(convId)) {
+                        const createConvPatch: Patch = {
+                            op: 'add',
+                            path: null,
+                            value: {
+                                component: 'box',
+                                id: containerId,
+                            },
+                        };
+
+                        const patchEnvelope = { type: 'patch', convId, payload: createConvPatch };
+
+                        // persist derived patch
+                        try {
+                            await this.store.appendFromEnvelope(patchEnvelope);
+                        } catch (err) {
+                            console.error('Failed to persist conv container patch', err);
+                        }
+
+                        // apply the patch to create the container
+                        await this.interpreter.applyPatch(this.rootEl, createConvPatch);
+
+                        // track container so subsequent patches use path = containerId
+                        this.convContainers.add(convId);
+                    }
+                }
+
+                // other control events may be forwarded to interpreter if needed
+                await this.interpreter.handleEnvelope(this.rootEl, envelope);
+                return;
+            }
+
+            // ----- MESSAGE: convert or forward -----
+            if (envelope.type === 'message') {
+                const convId = envelope.convId ?? `conv-${Date.now()}`;
+
+                // If message.payload.content already contains a UI schema, convert to patch and apply.
+                const content = envelope.payload?.content;
+                const containsSchema = !!(content && typeof content === 'object' && content.component);
+
+                if (containsSchema) {
+                    // convert schema into a patch so Interpreter.applyPatch is always used
+                    const schemaPatch: Patch = {
+                        op: 'add',
+                        path: this.convContainers.has(convId) ? getConvContainerId(convId) : null,
+                        value: { ...content },
+                    };
+
+                    const patchEnvelope = { type: 'patch', convId, payload: schemaPatch };
+
+                    try {
+                        await this.store.appendFromEnvelope(patchEnvelope);
+                    } catch (err) {
+                        console.error('Failed to persist derived schema patch', err);
+                    }
+
+                    await this.interpreter.applyPatch(this.rootEl, schemaPatch);
+                    return;
+                }
+
+                // Otherwise convert plain-text or simple message into a text patch
+                const derivedPatchEnv = messageToPatchEnvelope(envelope);
+
+                try {
+                    await this.store.appendFromEnvelope(derivedPatchEnv);
+                } catch (err) {
+                    console.error('Failed to persist derived message->patch envelope', err);
+                }
+
+                await this.interpreter.applyPatch(this.rootEl, derivedPatchEnv.payload);
+                return;
+            }
+
+            // ----- Fallback: let interpreter handle anything else (for compatibility) -----
+            await this.interpreter.handleEnvelope(this.rootEl, envelope);
         } catch (err) {
             console.error('Failed to dispatch envelope to interpreter', err, envelope);
             throw err;
