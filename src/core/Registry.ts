@@ -34,6 +34,7 @@ export class Registry {
         'timeline': () => import('../components/UiTimeline').then(mod => ({ default: mod.UiTimeline })),
         'stream': () => import('../components/UiStream').then(mod => ({ default: mod.UiStream })),
         'table': () => import('../components/UiTable').then(mod => ({ default: mod.UiTable })),
+        'error': () => import('../components/UiError').then(mod => ({ default: mod.UiError })),
     };
 
     constructor() {}

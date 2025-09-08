@@ -144,6 +144,16 @@ export class Interpreter {
                 // may need to adjust for dynamic layout
                 targetElement.appendChild(element);
             }
+            else {
+                const errorEl = await this.createComponentElement({component: 'error', message: `Error: Cannot create element for '${comp.component}'`
+                , original: comp});
+                if (errorEl) {
+                    targetElement.appendChild(errorEl);
+                }
+                else {
+                    console.error(`Error: Cannot create element for '${comp.component}'`);
+                }
+            }
         }
     }
 
