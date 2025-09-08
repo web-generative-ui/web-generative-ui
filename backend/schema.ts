@@ -1,54 +1,3 @@
-import type {Transport, TransportOptions} from "./core/transport/types.ts";
-
-export type GenerativeUIConfig = {
-    container: string | HTMLElement;
-    /** Optional: streamUrl is only required when using the legacy EventSource path. */
-    streamUrl?: string;
-    /** Accept either a ready Transport instance or transport options to create one. */
-    transport?: Transport | TransportOptions;
-    /** Clear container before first render (default: true) */
-    clearContainer?: boolean;
-    /** Pass-through options to EventSource (optional) */
-    eventSourceInit?: EventSourceInit;
-    /** Hook errors (JSON parse/apply failures) */
-    onError?: (err: unknown, raw?: string) => void;
-    /** Hook when connection established — receives either EventSource (legacy) or Transport instance */
-    onOpen?: (conn: EventSource | Transport) => void;
-    /** Hook when server signals close or error ends the stream */
-    onClose?: () => void;
-};
-
-export type PatchOperation = 'add' | 'update' | 'remove';
-
-export interface Patch {
-    /** The operation to perform. */
-    op: PatchOperation;
-
-    /**
-     * For 'add' operations: The ID of the parent component to append to.
-     * If null or undefined, appends to the root container.
-     */
-    path?: string | null;
-
-    /**
-     * For 'update' and 'remove' operations: The ID of the component to target.
-     */
-    targetId?: string;
-
-    /** The component data to use for the 'add' or 'update' operation. */
-    value: Component;
-}
-
-// --- Core Definitions ---
-
-export interface TransitionConfig {
-    enter: string;
-    enterActive: string;
-    exit: string;
-    exitActive: string;
-    update: string;
-}
-
 /**
  * The base interface for all UI components. It ensures that every component
  * can have a unique 'id', which is essential for partial/streamed updates.
@@ -60,10 +9,6 @@ export interface BaseComponent {
      */
     id?: string;
 }
-
-export type ElementModule = {
-    default: typeof HTMLElement;
-};
 
 /**
  * An array of UI components to be rendered (can be a nested child of a child component).
