@@ -1,115 +1,90 @@
 # Web Generative UI
 
-An innovative frontend library for creating dynamic, AI-driven web interfaces that adapt in real-time using the Model
-Context Protocol.
+A frontend library for creating dynamic, AI-driven web interfaces that adapt in real-time (primarily ideal for Model Context Protocol applications).
 
-[![NPM Version](https://img.shields.io/npm/v/web-generative-ui.svg)](https://www.npmjs.com/package/web-generative-ui)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Introduction
 
-**Web Generative UI** is a cutting-edge frontend library designed to revolutionize web applications by enabling dynamic,
-AI-driven user interfaces. Leveraging the **Model Context Protocol**, it allows developers to create web experiences
+**Web Generative UI** is a frontend library designed to revolutionize web applications by enabling dynamic,
+AI-driven user interfaces. The ideas come from the vast development of the **Model Context Protocol**, it allows developers to create web experiences
 that adapt and generate content in real-time, offering unparalleled interactivity and personalization. Whether you're
 building a highly interactive dashboard, a personalized e-commerce platform, or a next-generation web app, Web
-Generative UI empowers you to create adaptive, intelligent, and engaging user experiences.
+Generative UI empowers you to create adaptive, intelligent, and engaging user experiences. And I believe that it's the future of web applications
+(not just stop at web UI but rather all other platforms)!
 
 ## Features
 
-- **Dynamic UI Generation**: Create interfaces that adapt in real-time based on user interactions and AI-driven
-  insights.
+- **Dynamic UI Rendering**: Render interfaces that adapt in real-time (AI nature).
+- **LLM first approach**: Use AI to generate content instead of hard-coding it, especially for the MCP ecosystem.
+- **AI-Driven Content**: Generate content based on user input.
+- **Context Management**: Manage context for ongoing conversations.
 - **Model Context Protocol Integration**: Seamlessly leverage AI models to generate personalized content.
 - **Real-Time Adaptability**: Update UI components dynamically without reloading the page.
+- **Transport Channel Support**: Currently supports SSE and WebSocket transport channels.
 - **Developer-Friendly API**: Simple and intuitive APIs for integrating generative UI into existing web projects.
-- **Highly Customizable**: Tailor UI behavior and styling to match your application's needs.
-- **Cross-Platform Compatibility**: Works with modern frontend frameworks like React, Vue, and Angular.
+- **Cross-Platform Compatibility**: Using native Web Components -> works with modern frontend frameworks like React, Vue, and Angular.
 
-## Installation
-
-To get started with Web Generative UI, install it via npm:
-
-```bash
-npm install web-generative-ui
-```
-
-# Prerequisites
-
-Node.js >= 16.x
-A modern frontend framework (e.g., React, Vue, or Angular)
-Access to a Model Context Protocol-compatible AI service (see Setup)
-
-## Quick Start
-
-Here's a simple example to create a dynamic, AI-driven text input component using Web Generative UI:
-
-```javascript
-import {GenerativeUI} from 'web-generative-ui';
-
-// Initialize the library with your Model Context Protocol API key
-const gui = new GenerativeUI({
-    apiKey: 'YOUR_API_KEY',
-    model: 'mcp-model-1',
-});
-
-// Create a dynamic input component
-gui.createComponent({
-    type: 'text-input',
-    container: '#app',
-    context: 'Generate a personalized greeting based on user input',
-});
-```
-
-```html
-<div id="app"></div>
-```
-
-Run your application, and the input will dynamically adapt its content based on the AI model!
-
-## Setup
-
-1. **Install Dependencies**: Ensure you have installed the library and required dependencies (
-   see [Installation](#installation)).
-2. **Configure Model Context Protocol**:
-    - Sign up for an MCP-compatible AI service (e.g., [MCP Provider](https://mcp-provider.example.com)).
-    - Obtain an API key and add it to your environment variables:
-      ```bash
-      export MCP_API_KEY='your-api-key'
-      ```
-3. **Initialize the Library:**: 
-    - Import and configure the library as shown in the Quick Start section.
-4. Optional: Customize component styles and behavior via the configuration object (see Documentation).
+## Next Goals
+- [ ] Implement Styling & Theming (Design System Integration).
+- [ ] Refine Component styling & theming to match the design system.
+- [ ] Implement dedicated transition for each component.
+- [ ] Introduce more flexible layout mechanism
+- [ ] Implement more components.
+- [ ] Accessibility.
+- [ ] Actions handler.
+- [ ] Support for more transport channels.
 
 ## Usage Examples
 ### Example 1: Personalized Product Recommendations
-Create a UI component that generates product suggestions based on user preferences:
+Using SSE transport channel to send and receive messages:
+
+```html
+<button id="trigger">SEND MESSAGE</button>
+<div id="container"></div>
+```
 
 ```javascript
-const gui = new GenerativeUI({
-  apiKey: 'YOUR_API_KEY',
-  model: 'mcp-recommendation-model',
-});
+const ui = await GenerativeUI.init({
+    container: '#container',
+    transport: {
+        type: 'sse',
+        streamURL: 'http://localhost:3000/api/llm-stream',
+        sendURL: 'http://localhost:3000/api/llm-message',
+    },
+})
 
-gui.createComponent({
-  type: 'recommendation-list',
-  container: '#recommendations',
-  context: 'Suggest products based on user browsing history',
-  options: { maxItems: 5 },
+const convId = await ui.createConversation();
+const trigger = document.getElementById('trigger');
+trigger?.addEventListener('click', async () => {
+    await ui.sendMessage(convId, 'Hello there!');
 });
 ```
 
 ### Example 2: Dynamic Chat Interface
-Build a conversational UI that adapts to user input in real-time:
+Using WebSocket transport channel to send and receive messages:
+
 ```javascript
-gui.createComponent({
-  type: 'chat-box',
-  container: '#chat',
-  context: 'Engage users in a conversational flow',
-  options: { theme: 'dark' },
+const ui = await GenerativeUI.init({
+    container: '#container',
+    transport: {
+        type: 'websocket',
+        url: 'ws://localhost:3000/ws',
+    },
+});
+
+await ui.connect();
+
+const convId = await ui.createConversation();
+const trigger = document.getElementById('trigger');
+trigger?.addEventListener('click', async () => {
+    await ui.sendMessage(convId, 'Hello there!');
+});
+
+window.addEventListener('beforeunload', () => {
+    ui.disconnect();
 });
 ```
-
-## Documentation
-For detailed API references, advanced configuration options, and more examples, check out the [full documentation](https://github.com/username/web-generative-ui/wiki) or visit the `docs/` folder in this repository.
 
 ## Contributing
 We welcome contributions to Web Generative UI! To get started:
@@ -125,11 +100,7 @@ Please read our [Contributing Guidelines](CONTRIBUTING.md) for more details and 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Community and Support
-- **Issues**: Report bugs or request features on our [GitHub Issues](https://github.com/username/web-generative-ui/issues) page.
-- **Community**: Join our [Discord server](https://discord.gg/your-invite) to connect with other developers.
-- **Feedback**: Have questions or ideas? Reach out via [email](mailto:support@webgenerativeui.com).
+- **Issues**: Report bugs or request features on our [GitHub Issues](https://github.com/Piplip/web-generative-ui) page.
 
 ## Acknowledgments
-- Thanks to the [Model Context Protocol](https://mcp-provider.example.com) team for their innovative AI framework.
-- Inspired by the open-source community and projects like [React](https://reactjs.org).
-- Special thanks to our contributors: [list contributors or link to contributors page].
+- Inspired by the [Model Context Protocol](https://modelcontextprotocol.io/) technology 

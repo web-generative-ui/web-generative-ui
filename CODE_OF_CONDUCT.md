@@ -1,10 +1,14 @@
 # Code of Conduct
 
 ## Our Pledge
-We, the maintainers and contributors of **Web Generative UI**, are committed to fostering an open, inclusive, and harassment-free environment for everyone. Our goal is to create a community where individuals of all backgrounds—regardless of age, gender, gender identity, sexual orientation, disability, ethnicity, religion, or any other characteristic—can collaborate to advance AI-driven, dynamic web interfaces. We value diverse perspectives and strive to make participation in our project a positive and respectful experience for all.
+We, the maintainers and contributors of **Web Generative UI**, are committed to fostering an open, inclusive, and harassment-free environment for everyone.
+Our goal is to create a community where individuals of all backgrounds—regardless of age, gender, gender identity, sexual orientation, disability, ethnicity, religion,
+or any other characteristic—can collaborate to advance AI-driven, dynamic web interfaces. We value diverse perspectives and strive to make participation in our project
+a positive and respectful experience for all.
 
 ## Our Standards
-To ensure a welcoming and productive community, we expect everyone participating in the Web Generative UI project—whether through contributions, discussions, or other interactions—to adhere to the following standards:
+To ensure a welcoming and productive community, we expect everyone participating in the Web Generative UI project—whether through contributions, discussions,
+or other interactions—to adhere to the following standards:
 
 ### Expected Behaviors
 - **Be Respectful**: Treat others with kindness, empathy, and respect, even when opinions differ.
@@ -23,18 +27,15 @@ To ensure a welcoming and productive community, we expect everyone participating
 
 ## Scope
 This Code of Conduct applies to all project spaces, including:
-- The [Web Generative UI GitHub repository](https://github.com/username/web-generative-ui) (issues, pull requests, comments).
-- Community channels such as our [Discord server](https://discord.gg/your-invite).
-- Email communications (e.g., [support@webgenerativeui.com](mailto:support@webgenerativeui.com)).
+- The [Web Generative UI GitHub repository](https://github.com/Piplip/web-generative-ui) (issues, pull requests, comments).
 - Any other forums, events, or platforms associated with Web Generative UI.
 
-It also applies to interactions outside these spaces when they involve project contributors and could impact the project’s community (e.g., social media posts targeting project members).
+It also applies to interactions outside these spaces when they involve project contributors and could impact the project’s community
+(e.g., social media posts targeting project members).
 
 ## Enforcement
 Violations of this Code of Conduct will be addressed promptly and fairly. If you experience or witness unacceptable behavior, please report it by:
-- Contacting the project maintainers via email at [support@webgenerativeui.com](mailto:support@webgenerativeui.com).
-- Messaging a moderator on our [Discord server](https://discord.gg/your-invite).
-- Opening an issue on the [GitHub repository](https://github.com/username/web-generative-ui/issues) (mark it as private if sensitive).
+- Opening an issue on the [GitHub repository](https://github.com/Piplip/web-generative-ui/issues) (mark it as private if sensitive).
 
 ### Reporting Guidelines
 When reporting, please provide:
@@ -66,8 +67,5 @@ Maintainers have the additional responsibility to:
 
 ## Attribution
 This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org), version 2.1, available at [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html). We are grateful for their work in creating a widely adopted framework for inclusive open-source communities.
-
-## Questions or Feedback
-If you have questions about this Code of Conduct or suggestions for improving it, please reach out to us at [support@webgenerativeui.com](mailto:support@webgenerativeui.com) or join our [Discord server](https://discord.gg/your-invite) to discuss.
 
 Thank you for helping us build a respectful, collaborative, and innovative community around **Web Generative UI**!

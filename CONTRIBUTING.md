@@ -1,12 +1,14 @@
 # Contributing to Web Generative UI
 
-Thank you for your interest in contributing to **Web Generative UI**! This library aims to revolutionize web applications by enabling dynamic, AI-driven user interfaces using the Model Context Protocol. We welcome contributions from the community to help improve the library, fix bugs, add features, or enhance documentation. This guide outlines how you can contribute effectively.
+Thank you for your interest in contributing to **Web Generative UI**! This library aims to revolutionize web applications by enabling dynamic,
+AI-driven user interfaces. We welcome contributions from the community to help improve the library, fix bugs, add features, or enhance documentation.
+This guide outlines how you can contribute effectively.
 
 ## How to Contribute
 
 ### 1. Reporting Issues
 If you find a bug, have a feature request, or want to suggest an improvement:
-- Check the [GitHub Issues](https://github.com/username/web-generative-ui/issues) page to see if your issue already exists.
+- Check the [GitHub Issues](https://github.com/Piplip/web-generative-ui/issues) page to see if your issue already exists.
 - If it doesn't, create a new issue with a clear title and description.
 - Include relevant details such as:
     - Steps to reproduce the issue (if applicable).
@@ -16,10 +18,10 @@ If you find a bug, have a feature request, or want to suggest an improvement:
 
 ### 2. Submitting Pull Requests
 We use pull requests (PRs) to manage code contributions. To submit a PR:
-1. **Fork the Repository**: Fork [web-generative-ui](https://github.com/username/web-generative-ui) to your GitHub account.
+1. **Fork the Repository**: Fork [web-generative-ui](https://github.com/Piplip/web-generative-ui) to your GitHub account.
 2. **Clone Your Fork**:
    ```bash
-   git clone https://github.com/your-username/web-generative-ui.git
+   git clone https://github.com/Piplip/web-generative-ui.git
    cd web-generative-ui
    ```
 3. **Create a Branch**:
@@ -31,11 +33,7 @@ We use pull requests (PRs) to manage code contributions. To submit a PR:
     - Follow the [Coding Standards](#coding-standards) below.
     - Ensure your changes align with the project's goals (e.g., enhancing AI-driven UI capabilities).
 5. **Test Your Changes**:
-    - Run tests using:
-      ```bash
-      npm test
-      ```
-    - Ensure all tests pass and add new tests for new features or bug fixes.
+    - Currently, there are no automated tests. We will add them in the future. We only have a local Express server to test the UI components (in the backend folder).
 6. **Commit Changes**:
     - Write clear, concise commit messages (e.g., `Add support for dynamic chat component`).
     - Use the present tense and be descriptive.
@@ -44,7 +42,7 @@ We use pull requests (PRs) to manage code contributions. To submit a PR:
    git push origin feature/your-feature-name
    ```
 8. **Open a Pull Request**:
-    - Go to the [web-generative-ui repository](https://github.com/username/web-generative-ui) and create a PR from your branch.
+    - Go to the [web-generative-ui repository](https://github.com/Piplip/web-generative-ui) and create a PR from your branch.
     - Provide a detailed description of your changes, referencing any related issues (e.g., `Fixes #123`).
     - Ensure your PR passes CI checks (if applicable).
 
@@ -66,7 +64,6 @@ To maintain consistency and quality, please adhere to the following guidelines:
     - Write modular, reusable code for components and utilities.
     - Avoid hardcoding values; use configuration objects or constants.
 - **Documentation**:
-    - Update documentation in the `docs/` folder for new features or changes.
     - Include JSDoc comments for public APIs and complex functions.
 - **Testing**:
     - Write unit tests using [Jest](https://jestjs.io) for new features or bug fixes.
@@ -75,36 +72,31 @@ To maintain consistency and quality, please adhere to the following guidelines:
 - **AI Integration**:
     - Ensure compatibility with the Model Context Protocol (MCP) for AI-driven features.
     - Avoid hardcoding specific AI model dependencies; use abstraction layers.
-- **Commit Messages**:
-    - Follow the [Conventional Commits](https://www.conventionalcommits.org) format (e.g., `feat: add dynamic text input component`, `fix: resolve null pointer in renderer`).
 
 ## Development Setup
 To set up the project locally:
+You will need [Node.js](https://nodejs.org/en/), [npm](https://www.npmjs.com/) and [npx](https://www.npmjs.com/package/npx) installed on your machine.
+NodeJS LTS versions are recommended.
 1. **Clone and Install**:
    ```bash
-   git clone https://github.com/username/web-generative-ui.git
+   git clone https://github.com/Piplip/web-generative-ui.git
    cd web-generative-ui
    npm install
    ```
-2. **Configure Environment**:
-    - Copy `.env.example` to `.env` and add your Model Context Protocol API key:
-      ```bash
-      cp .env.example .env
-      ```
-    - Update `.env` with your credentials (e.g., `MCP_API_KEY=your-key`).
-3. **Run Locally**:
+   
+2. **Run Locally**:
    ```bash
+   npm run dev
+   ```
+   
+3. **Run mock backend server**:
+   ```bash
+   cd backend
+   npm install
    npm start
    ```
+   
    This starts a development server for testing UI components.
-4. **Run Tests**:
-   ```bash
-   npm test
-   ```
-5. **Build for Production**:
-   ```bash
-   npm run build
-   ```
 
 ## Code Review Process
 - All PRs are reviewed by at least one maintainer.
@@ -116,13 +108,10 @@ To set up the project locally:
 We strive to create a welcoming and inclusive community. Please:
 - Follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 - Be respectful and constructive in discussions.
-- Help others by answering questions in issues or on our [Discord server](https://discord.gg/your-invite).
 
 ## Getting Help
-- **Documentation**: Check the [docs/](docs/) folder or [wiki](https://github.com/username/web-generative-ui/wiki) for detailed guides.
-- **Issues**: Search or ask questions on [GitHub Issues](https://github.com/username/web-generative-ui/issues).
-- **Community**: Join our [Discord server](https://discord.gg/your-invite) for real-time discussions.
-- **Email**: For private inquiries, contact [support@webgenerativeui.com](mailto:support@webgenerativeui.com).
+- **Issues**: Search or ask questions on [GitHub Issues](https://github.com/Piplip/web-generative-ui/issue).
 
 ## Acknowledgments
-Thank you for contributing to Web Generative UI! Your efforts help us build a more dynamic, AI-driven web. Special thanks to all contributors and the open-source community for inspiring this project.
+Thank you for contributing to Web Generative UI! Your efforts help us build a more dynamic, AI-driven web.
+Special thanks to all contributors and the open-source community for inspiring this project.
