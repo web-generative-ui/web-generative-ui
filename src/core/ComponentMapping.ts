@@ -22,4 +22,5 @@ export const componentTagMap: { [key: string]: string } = {
     'tabs': 'ui-tabs',
     'collapse-block': 'ui-collapse-block',
     'reference': 'ui-reference',
+    'error': 'ui-error',
 };

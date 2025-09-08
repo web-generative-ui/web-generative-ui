@@ -18,6 +18,11 @@ type GenerativeUIInstance = {
     onControl: (cb: (control: any) => void) => void;
     onEvent: (cb: (ev: any) => void) => void;
     disconnect: () => void;
+    getConversationHistory: (convId: string) => Promise<any[]>;
+    getRecentMessages: (convId: string, limit?: number) => Promise<any[]>;
+    getMessagesFrom: (convId: string, fromTurnId: string) => Promise<any[]>;
+    extractMessageContent: (messages: any[]) => any[];
+    getLastUserContext: (convId: string) => Promise<any>;
 
     conversationManager: ConversationManager;
     registry: Registry;
@@ -70,7 +75,7 @@ const GenerativeUI = {
     /**
      * High-level bootstrap: creates a UI instance bound to one transport/server.
      */
-    async start(opts: GenerativeUIConfig): Promise<GenerativeUIInstance> {
+    async init(opts: GenerativeUIConfig): Promise<GenerativeUIInstance> {
         const registry = this.createRegistry();
         const interpreter = registry.getInterpreter();
 
@@ -118,6 +123,28 @@ const GenerativeUI = {
             sendMessage: (convId: string, msg: string | { text?: string; [k: string]: any }) => {
                 conversationManager.clearContainer()
                 return conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg)
+            },
+
+            getConversationHistory: (convId: string) =>
+                conversationManager.getMessages(convId),
+
+            getRecentMessages: (convId: string, limit: number = 5) =>
+                conversationManager.getMessages(convId, { limit }),
+
+            getMessagesFrom: (convId: string, fromTurnId: string) =>
+                conversationManager.getMessages(convId, { fromTurnId }),
+
+            // Helper to extract just the content from messages
+            extractMessageContent: (messages: any[]) =>
+                messages.map(envelope => envelope.payload?.content).filter(Boolean),
+
+            // Helper to get the last user message context
+            getLastUserContext: async (convId: string) => {
+                const messages = await conversationManager.getMessages(convId);
+                const lastUserMessage = messages
+                    .filter(env => env.payload?.role === 'user')
+                    .pop();
+                return lastUserMessage?.payload?.content;
             },
 
             // open the underlying transport (safe no-op if missing)

@@ -101,6 +101,7 @@ export type Component =
     | Tabs
     | CollapseBlock
     | Reference
+    | Error;
 
 // --- Component-Specific Interfaces ---
 
@@ -292,4 +293,10 @@ export interface Reference extends BaseComponent {
     label: string;
     target: string;
     description?: string;
+}
+
+export interface Error extends BaseComponent {
+    component: "error";
+    message: string;
+    original?: any;
 }
