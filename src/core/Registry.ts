@@ -1,6 +1,7 @@
 import { Interpreter } from './Interpreter';
 import { componentTagMap } from './ComponentMapping.ts';
 import type {Children, Component, ElementModule} from '../schema.ts';
+import {normalizeChildrenField} from "./common.ts";
 
 /**
  * The Registry class manages the dynamic loading and definition of UI components.
@@ -114,33 +115,103 @@ export class Registry {
      * @param payload A single Component or an array of Components.
      */
     public async ensurePayloadComponentsDefined(payload: Component | Children): Promise<void> {
+        const MAX_DEPTH = 10; // Adjust based on your needs
         const componentsToCheck = Array.isArray(payload) ? payload : [payload];
         const schemaNamesToLoad = new Set<string>();
+        const stack: { comp: Component; depth: number }[] = [];
 
-        // Recursively find all unique component names in the payload
-        const findComponentNames = (comps: Component | Children | undefined) => {
-            if (!comps) return;
-            const currentComps = Array.isArray(comps) ? comps : [comps];
-            currentComps.forEach(comp => {
+        // Initialize stack with top-level components
+        for (const comp of componentsToCheck) {
+            if (comp) {
+                stack.push({ comp, depth: 0 });
+            }
+        }
+
+        while (stack.length > 0) {
+            const { comp, depth } = stack.pop()!;
+
+            // Add current component's schema name
+            if (comp && comp.component) {
                 schemaNamesToLoad.add(comp.component);
+            }
 
-                // Check for nested children
-                if ('children' in comp && comp.children && comp.children.items) {
-                    findComponentNames(comp.children.items);
-                }
-                // Special handling for components with non-standard 'children' properties
-                if ('tabs' in comp && comp.tabs) {
-                    comp.tabs.forEach(tab => findComponentNames(tab.content));
-                }
-                if ('content' in comp && (comp as any).content && Array.isArray((comp as any).content)) {
-                    // This handles CollapseBlock.content and Tooltip.trigger
-                    findComponentNames((comp as any).content);
-                }
-            });
-        };
+            // Skip processing children if max depth reached
+            if (depth >= MAX_DEPTH) {
+                continue;
+            }
 
-        findComponentNames(componentsToCheck);
+            // Helper to push child components to stack
+            const pushChildren = (children: Component[] | undefined) => {
+                if (children && children.length > 0) {
+                    for (const child of children) {
+                        if (child) {
+                            stack.push({ comp: child, depth: depth + 1 });
+                        }
+                    }
+                }
+            };
 
+            // Check all possible child component sources
+            const childrenArr = normalizeChildrenField(comp as any);
+            if (Array.isArray(childrenArr)) {
+                pushChildren(childrenArr);
+            }
+
+            // Tabs
+            if ('tabs' in comp && Array.isArray((comp as any).tabs)) {
+                for (const tab of (comp as any).tabs) {
+                    if (Array.isArray(tab.content) && tab.content.length > 0) {
+                        pushChildren(tab.content);
+                    }
+                }
+            }
+
+            // Stream items
+            if ('items' in comp && Array.isArray((comp as any).items)) {
+                for (const item of (comp as any).items) {
+                    if (item && typeof item.component === 'string') {
+                        pushChildren([item]);
+                    }
+
+                    const itemContent = (item as any).content;
+                    if (itemContent && typeof itemContent === 'object') {
+                        if (Array.isArray(itemContent)) {
+                            pushChildren(itemContent);
+                        } else if (typeof (itemContent as any).component === 'string') {
+                            pushChildren([itemContent as Component]);
+                        }
+                    }
+                }
+            }
+
+            // Content array
+            if ('content' in comp && Array.isArray((comp as any).content)) {
+                pushChildren((comp as any).content);
+            }
+
+            // Carousel
+            if (('carousel' in comp) || comp.component === 'carousel') {
+                const items = (comp as any).items;
+                if (Array.isArray(items)) {
+                    pushChildren(items);
+                }
+            }
+
+            // Grid children
+            if (comp && (comp as any).children && Array.isArray((comp as any).children)) {
+                pushChildren((comp as any).children);
+            }
+
+            // Legacy table children
+            if ('children' in comp) {
+                const maybe = (comp as any).children;
+                if (maybe && Array.isArray(maybe.items)) {
+                    pushChildren(maybe.items);
+                }
+            }
+        }
+
+        // Batch process all schema definitions
         const definitionPromises = Array.from(schemaNamesToLoad).map(schemaName =>
             this.ensureComponentDefined(schemaName)
         );
