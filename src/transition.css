@@ -30,12 +30,309 @@
 }
 
 /* --- Custom Card Slide-in Transition --- */
+
+/* --- Card Enter (Slide In) --- */
 .card-slide-enter {
     opacity: 0;
-    transform: translateX(-30px);
+    transform: translateX(-20px);
 }
 .card-slide-enter-active {
     opacity: 1;
     transform: translateX(0);
+    transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* --- Card Exit (Slide Out) --- */
+.card-slide-exit {
+    opacity: 1;
+    transform: translateX(0);
+}
+.card-slide-exit-active {
+    opacity: 0;
+    transform: translateX(20px);
+    transition: opacity 250ms ease-in, transform 250ms ease-in;
+}
+
+/* --- Badge Enter (Pop In) --- */
+.badge-pop-enter {
+    opacity: 0;
+    transform: scale(0.85);
+}
+.badge-pop-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 200ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Badge Exit (Pop Out) --- */
+.badge-pop-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.badge-pop-exit-active {
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 150ms ease-in, transform 150ms ease-in;
+}
+
+/* --- Button Enter (Rise Up) --- */
+.btn-rise-enter {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+}
+.btn-rise-enter-active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+/* --- Button Exit (Fade Out) --- */
+.btn-fade-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.btn-fade-exit-active {
+    opacity: 0;
+    transform: scale(0.96);
+    transition: opacity 180ms ease-in, transform 180ms ease-in;
+}
+
+/* --- Item Enter (Fade + Scale Up) --- */
+.carousel-item-enter {
+    opacity: 0;
+    transform: scale(0.95);
+}
+.carousel-item-enter-active {
+    opacity: 1;
+    transform: scale(1);
     transition: opacity 400ms ease-out, transform 400ms ease-out;
+}
+
+/* --- Item Exit (Fade + Scale Down) --- */
+.carousel-item-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.carousel-item-exit-active {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 300ms ease-in, transform 300ms ease-in;
+}
+
+/* --- Image Enter (Fade + Scale Up) --- */
+.image-fade-enter {
+    opacity: 0;
+    transform: scale(0.97);
+}
+.image-fade-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 400ms ease-out, transform 400ms ease-out;
+}
+
+/* --- Image Exit (Fade + Scale Down) --- */
+.image-fade-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.image-fade-exit-active {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 300ms ease-in, transform 300ms ease-in;
+}
+
+/* --- Stream Item Enter (Directional Fade) --- */
+.stream.down .stream-item-enter {
+    opacity: 0;
+    transform: translateY(8px);
+}
+.stream.down .stream-item-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 280ms ease-out, transform 280ms ease-out;
+}
+
+.stream.up .stream-item-enter {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+.stream.up .stream-item-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 280ms ease-out, transform 280ms ease-out;
+}
+
+/* --- Stream Item Exit (Fade + Shrink) --- */
+.stream-item-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.stream-item-exit-active {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 200ms ease-in, transform 200ms ease-in;
+}
+
+/* --- Row Enter (Fade + Slide) --- */
+.table-row-enter {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+.table-row-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 250ms ease-out, transform 250ms ease-out;
+}
+
+/* --- Row Exit (Fade + Shrink) --- */
+.table-row-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.table-row-exit-active {
+    opacity: 0;
+    transform: scale(0.98);
+    transition: opacity 180ms ease-in, transform 180ms ease-in;
+}
+
+/* --- Children Expand/Collapse --- */
+.children-row {
+    overflow: hidden;
+}
+.children-row-enter {
+    opacity: 0;
+    max-height: 0;
+}
+.children-row-enter-active {
+    opacity: 1;
+    max-height: 200px; /* enough to show children */
+    transition: max-height 300ms ease, opacity 200ms ease;
+}
+.children-row-exit {
+    opacity: 1;
+    max-height: 200px;
+}
+.children-row-exit-active {
+    opacity: 0;
+    max-height: 0;
+    transition: max-height 250ms ease, opacity 180ms ease;
+}
+
+/* --- Header Active Highlight --- */
+.tab-header {
+    position: relative;
+    transition: color 200ms ease;
+}
+.tab-header.active {
+    color: #007acc;
+}
+.tab-header.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: #007acc;
+    transition: transform 200ms ease;
+    transform: scaleX(1);
+}
+.tab-header::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: #007acc;
+    transform: scaleX(0);
+}
+
+/* --- Tab Content Fade/Slide --- */
+.tab-content-enter {
+    opacity: 0;
+    transform: translateY(6px);
+}
+.tab-content-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+.tab-content-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+.tab-content-exit-active {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 150ms ease-in, transform 150ms ease-in;
+}
+
+/* --- Base text transitions --- */
+.text-enter {
+    opacity: 0;
+    transform: translateY(4px);
+}
+.text-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+.text-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+.text-exit-active {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 120ms ease-in, transform 120ms ease-in;
+}
+
+/* --- Highlight smooth background transition --- */
+.highlight-info,
+.highlight-warning,
+.highlight-error,
+.highlight-success,
+.highlight-accent {
+    transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* --- Loading Enter --- */
+.loading-enter {
+    opacity: 0;
+    transform: scale(0.95);
+}
+.loading-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 250ms ease-out, transform 250ms ease-out;
+}
+
+/* --- Loading Exit --- */
+.loading-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+.loading-exit-active {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 200ms ease-in, transform 200ms ease-in;
+}
+
+/* --- Progress Enter --- */
+.progress-enter {
+    opacity: 0;
+}
+.progress-enter-active {
+    opacity: 1;
+    transition: opacity 200ms ease-in;
+}
+
+/* --- Progress Exit --- */
+.progress-exit {
+    opacity: 1;
+}
+.progress-exit-active {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
 }
