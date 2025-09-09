@@ -4,6 +4,21 @@ import cors from 'cors';
 import {Request, Response} from 'express';
 import {WebSocketServer, WebSocket} from 'ws';
 import http from 'http';
+import {Badge, LayoutMeta, Link, Loading, Patch, Progress, Reference, Table, Tabs, Video} from "./schema";
+import type {
+    Box,
+    Button,
+    Card,
+    Carousel,
+    CollapseBlock,
+    Component,
+    Divider,
+    Icon,
+    Image,
+    Text,
+    Timeline,
+    Stream
+} from "./schema"
 
 const app = express();
 const PORT = 3000;
@@ -45,153 +60,226 @@ function randUrl() {
     return `https://example.com/${Math.random().toString(36).slice(2,8)}`;
 }
 
-// Create atomic components
-function makeText() {
+function makeLayoutMeta(): LayoutMeta {
     return {
-        component: 'text',
-        text: lorem(8),
+        span: maybe(0.5) ? pick([1, 2, 3, 4, 'auto', '1fr']) : undefined,
+        order: maybe(0.5) ? rnd(-2, 5) : undefined,
+        align: maybe(0.5) ? pick(['start', 'center', 'end', 'stretch']) : undefined,
+        grow: maybe(0.5) ? rnd(0, 3) : undefined,
+        basis: maybe(0.5) ? `${rnd(100, 300)}px` : undefined,
+        area: maybe(0.3) ? `area-${randId()}` : undefined,
     };
 }
 
-function makeImage() {
-    return {
+// Create atomic components
+function makeText(): Text {
+    const component: Text = {
+        component: 'text',
+        text: lorem(8),
+        variant: maybe(0.5) ? pick(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'subtitle', 'body', 'caption', 'overline', 'highlight-info', 'highlight-warning', 'highlight-error', 'highlight-success', 'highlight-accent']) : undefined,
+    };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
+}
+
+function makeImage(): Image {
+    const component: Image = {
         component: 'image',
         src: randImgUrl(),
         alt: lorem(3),
+        caption: maybe(0.5) ? lorem(5) : undefined,
+        fit: maybe(0.5) ? pick(['cover', 'contain', 'fill', 'none', 'scale-down']) : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeVideo() {
-    return {
+function makeVideo(): Video {
+    const component: Video = {
         component: 'video',
         src: randVideoUrl(),
-        poster: randImgUrl(),
-        controls: true,
-        autoplay: false,
-        loop: false,
-        muted: false,
+        poster: maybe(0.5) ? randImgUrl() : undefined,
+        controls: maybe(0.8),
+        autoplay: maybe(0.3),
+        loop: maybe(0.4),
+        muted: maybe(0.5),
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeButton() {
-    return {
+function makeButton(): Button {
+    const component: Button = {
         component: 'button',
         label: pick(['OK', 'Submit', 'Open', 'More', 'View']),
-        action: randUrl(),
+        action: maybe(0.7) ? randUrl() : undefined,
+        icon: maybe(0.5) ? { ...makeIcon(), position: pick(['left', 'right']) } : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeLink() {
-    return {
+function makeLink(): Link {
+    const component: Link = {
         component: 'link',
-        label: lorem(2),
         href: randUrl(),
+        target: maybe(0.5) ? pick(['_blank', '_self', '_parent', '_top']) : undefined,
+        children: maybe(0.8) ? [makeText()] : [],
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeBadge() {
-    return {
+function makeBadge(): Badge {
+    const component: Badge = {
         component: 'badge',
-        label: pick(['new', 'beta', 'info', 'urgent']),
+        text: pick(['new', 'beta', 'info', 'urgent']),
+        variant: maybe(0.5) ? pick(['info', 'success', 'warning', 'error', 'neutral']) : undefined,
+        icon: maybe(0.4) ? { ...makeIcon(), position: pick(['left', 'right']), size: maybe(0.5) ? 'small' : undefined } : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeProgress() {
-    return {
+function makeProgress(): Progress {
+    const component: Progress = {
         component: 'progress',
-        value: rnd(0, 100),
-        max: 100,
+        value: maybe(0.8) ? rnd(0, 100) : undefined,
+        variant: maybe(0.5) ? pick(['linear', 'circular']) : undefined,
+        label: maybe(0.4) ? lorem(3) : undefined,
+        indeterminate: maybe(0.2),
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeLoading() {
-    return {
+function makeLoading(): Loading {
+    const component: Loading = {
         component: 'loading',
-        size: pick(['small', 'medium', 'large']),
+        message: maybe(0.6) ? lorem(4) : undefined,
+        variant: maybe(0.5) ? pick(['spinner', 'skeleton', 'dots', 'bar']) : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeDivider() {
-    return {
+function makeDivider(): Divider {
+    const component: Divider = {
         component: 'divider',
-        style: pick(['solid', 'dashed', 'dotted']),
+        orientation: maybe(0.5) ? pick(['horizontal', 'vertical']) : undefined,
+        label: maybe(0.4) ? lorem(2) : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeIcon() {
-    return {
+function makeIcon(): Icon {
+    const component: Icon = {
         component: 'icon',
         name: pick(['check', 'clock', 'user', 'alert', 'star']),
+        variant: maybe(0.5) ? pick(['outlined', 'filled', 'rounded', 'sharp']) : undefined,
+        size: maybe(0.5) ? pick(['small', 'medium', 'large']) : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeReference() {
-    return {
+function makeReference(): Reference {
+    const component: Reference = {
         component: 'reference',
         label: lorem(2),
         target: randUrl(),
         description: maybe(0.4) ? lorem(10) : undefined,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeCard(children?: any[]) {
-    return {
+function makeCard(depth: number, maxDepth: number): Card {
+    const children = maybe(0.8) ? makeChildrenArray(depth + 1, maxDepth) : undefined;
+    const component: Card = {
         component: 'card',
         title: lorem(3),
-        subtitle: maybe(0.6) ? lorem(4) : undefined,
-        body: maybe(0.8) ? lorem(12) : undefined,
-        media: maybe(0.5) ? makeImage() : undefined,
-        actions: maybe(0.6) ? [makeButton(), makeLink()] : undefined,
-        children: children ? { items: children } : undefined,
+        children,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
 // Complex / container components
-function makeBox(depth: number, maxDepth: number) {
+function makeBox(depth: number, maxDepth: number): Box {
     const children = makeChildrenArray(depth + 1, maxDepth);
-    return {
+    const component: Box = {
         component: 'box',
-        title: maybe(0.5) ? lorem(3) : undefined,
-        children: { items: children },
+        direction: maybe(0.5) ? pick(['row', 'column']) : undefined,
+        gap: maybe(0.5) ? `${rnd(1, 4)}rem` : undefined,
+        align: maybe(0.5) ? pick(['start', 'center', 'end', 'stretch']) : undefined,
+        justify: maybe(0.5) ? pick(['start', 'center', 'end', 'space-between', 'space-around']) : undefined,
+        wrap: maybe(0.5) ? true : undefined,
+        children,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeCollapseBlock(depth: number, maxDepth: number) {
-    const children = makeChildrenArray(depth + 1, maxDepth);
-    return {
+function makeCollapseBlock(depth: number, maxDepth: number): CollapseBlock {
+    const content = makeChildrenArray(depth + 1, maxDepth);
+    const component: CollapseBlock = {
         component: 'collapse-block',
         title: lorem(3),
         collapsed: maybe(0.5),
-        content: children,
+        content,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeTabs(depth: number, maxDepth: number) {
+function makeTabs(depth: number, maxDepth: number): Tabs {
     const tabCount = rnd(1, 4);
     const tabs = new Array(tabCount).fill(null).map((_, i) => ({
         id: randId('t'),
         label: `Tab ${i + 1}`,
         content: makeChildrenArray(depth + 1, maxDepth),
     }));
-    return {
+    const component: Tabs = {
         component: 'tabs',
         tabs,
         'active-tab': pick(tabs).id,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeCarousel(depth: number, maxDepth: number) {
+function makeCarousel(depth: number, maxDepth: number): Carousel {
     const itemCount = rnd(1, 5);
-    const items = new Array(itemCount).fill(null).map(() => pick([makeImage(), makeCard(), makeVideo()]));
-    return {
+    const items = new Array(itemCount).fill(null).map(() => pick([makeImage(), makeCard(depth, maxDepth), makeVideo()]));
+    const component: Carousel = {
         component: 'carousel',
         autoplay: maybe(0.5),
         interval: pick([2000, 3000, 5000]),
         items,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeTimeline(depth: number, maxDepth: number) {
+function makeTimeline(): Timeline {
     const count = rnd(2, 6);
     const statuses = ['completed', 'active', 'upcoming', 'default'] as const;
     const items = new Array(count).fill(null).map(() => ({
@@ -201,34 +289,89 @@ function makeTimeline(depth: number, maxDepth: number) {
         icon: maybe(0.4) ? makeIcon() : undefined,
         media: maybe(0.3) ? pick([makeImage(), makeVideo()]) : undefined,
         status: pick(statuses),
+        extra: maybe(0.2) ? { custom: lorem(2) } : undefined,
     }));
-    return {
+    const component: Timeline = {
         component: 'timeline',
         orientation: pick(['vertical', 'horizontal']),
         items,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeStream(depth: number, maxDepth: number) {
+function makeStream(depth: number, maxDepth: number): Stream {
     const count = rnd(1, 6);
     const items = new Array(count).fill(null).map(() => {
         const contentIsString = maybe(0.5);
-        return {
-            id: randId('s'),
-            timestamp: new Date().toISOString(),
-            author: pick(['system', 'assistant', 'user']),
-            content: contentIsString ? lorem(12) : pick([makeText(), makeCard(), makeImage(), makeVideo()]),
-            status: pick(['pending', 'completed', 'error']),
+
+        // Create content with explicit typing
+        let content: string | Text | Card | Image | Video;
+
+        if (contentIsString) {
+            content = lorem(12);
+        } else {
+            // Randomly select a component type to create
+            const componentType = pick(['text', 'card', 'image', 'video', 'codeblock']);
+
+            switch (componentType) {
+                case 'text':
+                    content = makeText();
+                    break;
+                case 'card':
+                    content = makeCard(depth, maxDepth);
+                    break;
+                case 'image':
+                    content = makeImage();
+                    break;
+                case 'video':
+                    content = makeVideo();
+                    break;
+                default:
+                    // This should never happen, but provides a fallback
+                    content = lorem(12);
+            }
+        }
+
+        // Create the item with proper typing
+        const item: {
+            id?: string;
+            timestamp?: string;
+            author?: string;
+            content: string | Text | Card | Image | Video;
+            status?: 'pending' | 'completed' | 'error';
+            extra?: { [k: string]: any };
+            key?: string;
+        } = {
+            content,
         };
+
+        // Add optional properties conditionally
+        if (maybe(0.8)) item.id = randId('s');
+        if (maybe(0.7)) item.timestamp = new Date().toISOString();
+        if (maybe(0.6)) item.author = pick(['system', 'assistant', 'user']);
+        if (maybe(0.5)) item.status = pick(['pending', 'completed', 'error']);
+        if (maybe(0.2)) item.extra = { custom: lorem(2) };
+        if (maybe(0.5)) item.key = randId('key-');
+
+        return item;
     });
-    return {
+
+    const component: Stream = {
         component: 'stream',
-        direction: pick(['down', 'up']),
         items,
     };
+
+    // Add optional properties conditionally
+    if (maybe(0.5)) component.direction = pick(['up', 'down']);
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+
+    return component;
 }
 
-function makeTable(depth: number, maxDepth: number) {
+function makeTable(depth: number, maxDepth: number): Table {
     const rows = rnd(1, 6);
     const columns = [
         { key: 'id', header: 'ID' },
@@ -240,31 +383,34 @@ function makeTable(depth: number, maxDepth: number) {
         name: lorem(2),
         status: pick(['ok', 'warn', 'fail']),
     }));
-    const children = maybe(0.4) ? { items: makeChildrenArray(depth + 1, maxDepth) } : undefined;
-    return {
+    const children = maybe(0.4) ? makeChildrenArray(depth + 1, maxDepth) : undefined;
+    const component: Table = {
         component: 'table',
         data,
         columns,
         children,
     };
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
 }
 
-function makeChildrenArray(depth: number, maxDepth: number): any[] {
+function makeChildrenArray(depth: number, maxDepth: number): Component[] {
     const count = rnd(1, 4);
-    const out: any[] = [];
+    const out: Component[] = [];
     for (let i = 0; i < count; i++) {
         out.push(makeRandomComponent(depth, maxDepth));
     }
     return out;
 }
 
-function makeRandomComponent(depth = 0, maxDepth = 3): any {
+function makeRandomComponent(depth = 0, maxDepth = 3): Component {
     // If deep enough, bias towards leaf nodes
     const leafBias = depth >= maxDepth ? 0.9 : 0.3;
-    const leafPool = [
+    const leafPool: (() => Component)[] = [
         makeText, makeImage, makeVideo, makeButton, makeLink, makeBadge, makeProgress, makeLoading, makeDivider, makeIcon, makeReference
     ];
-    const containerPool = [
+    const containerPool: ((depth: number, maxDepth: number) => Component)[] = [
         makeCard, makeBox, makeCollapseBlock, makeTabs, makeCarousel, makeTimeline, makeStream, makeTable
     ];
 
@@ -274,41 +420,16 @@ function makeRandomComponent(depth = 0, maxDepth = 3): any {
 
     // randomly choose a container or card (card may include children)
     const chosen = pick(containerPool);
-    if (chosen === makeCard) return makeCard(makeChildrenArray(depth + 1, maxDepth));
-    if (chosen === makeBox) return makeBox(depth, maxDepth);
-    if (chosen === makeCollapseBlock) return makeCollapseBlock(depth, maxDepth);
-    if (chosen === makeTabs) return makeTabs(depth, maxDepth);
-    if (chosen === makeCarousel) return makeCarousel(depth, maxDepth);
-    if (chosen === makeTimeline) return makeTimeline(depth, maxDepth);
-    if (chosen === makeStream) return makeStream(depth, maxDepth);
-    if (chosen === makeTable) return makeTable(depth, maxDepth);
-
-    // fallback
-    return makeText();
+    return chosen(depth, maxDepth);
 }
 
-function generateRandomComponents(count = 3, maxDepth = 3): any[] {
-    const out: any[] = [];
+function generateRandomComponents(count = 3, maxDepth = 3): Component[] {
+    const out: Component[] = [];
     for (let i = 0; i < count; i++) out.push(makeRandomComponent(0, maxDepth));
     return out;
 }
 
 // ===== END TEST DATA GENERATOR =====
-
-type PatchOperation = 'add' | 'update' | 'remove';
-
-interface Component {
-    component: string;
-    id?: string;
-    [key: string]: any;
-}
-
-interface Patch {
-    op: PatchOperation;
-    path?: string | null;
-    targetId?: string;
-    value?: Component;
-}
 
 app.get('/api/llm-stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -388,18 +509,6 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
             value: {component: 'card', id: 'status-card', title: '✅ Content Generated Successfully'},
         });
         await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Add a summary divider
-        sendPatch({
-            op: 'add',
-            path: 'main-container',
-            value: {
-                component: 'divider',
-                id: 'summary-divider',
-                orientation: 'horizontal',
-                label: `Generated ${randomComponents.length} Components`
-            },
-        });
 
         closeStream();
         res.end();
