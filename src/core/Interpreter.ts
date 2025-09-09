@@ -4,6 +4,31 @@ import type {Registry} from "./Registry.ts";
 import type {Envelope} from "./transport/types.ts";
 
 /**
+ * Read metadata
+ */
+function readElementKey(el: Element | null): string | undefined {
+    if (!el) return undefined;
+    return (el as HTMLElement).dataset['componentKey'];
+}
+function readElementType(el: Element | null): string | undefined {
+    if (!el) return undefined;
+    return (el as HTMLElement).dataset['componentType'];
+}
+
+async function removeElementGracefully(el: Element) {
+    // if the element is a custom element instance with willExit, call it
+    const maybeComp = el as unknown as { willExit?: () => Promise<void> };
+    if (typeof maybeComp.willExit === 'function') {
+        try {
+            await maybeComp.willExit();
+        } catch {
+            // swallow; proceed to remove
+        }
+    }
+    if (el.parentElement) el.parentElement.removeChild(el);
+}
+
+/**
  * The Interpreter class is responsible for rendering and applying patches to the UI.
  * It handles the dynamic creation and update of custom elements based on the provided data.
  */
@@ -44,6 +69,7 @@ export class Interpreter {
      */
     private async createComponentElement(componentData: Component): Promise<HTMLElement | null> {
         await this.registry.ensureComponentDefined(componentData.component);
+        // await this.registry.ensurePayloadComponentsDefined(componentData)
 
         const tagName = componentTagMap[componentData.component as string];
         if (!tagName) {
@@ -69,49 +95,8 @@ export class Interpreter {
             exit: customConfig.exit || 'g-exit',
             exitActive: customConfig.exitActive || 'g-exit-active',
             update: customConfig.update || 'g-highlight',
+            highlight: customConfig.highlight || 'g-highlight',
         };
-    }
-
-    /**
-     * Animates the addition of a new element.
-     * @param element The element to animate.
-     * @param parentElement The parent element to append the element to.
-     */
-    private animateAdd(element: HTMLElement, parentElement: Element | HTMLElement | ShadowRoot) {
-        const config = this.getTransitionConfig(element);
-
-        // 1. Start with the initial state
-        element.classList.add(config.enter);
-        parentElement.appendChild(element);
-
-        // 2. In the next frame, transition to the active state
-        requestAnimationFrame(() => {
-            element.classList.add(config.enterActive);
-        });
-
-        // 3. Clean up the classes after the transition is done
-        element.addEventListener('transitionend', () => {
-            element.classList.remove(config.enter, config.enterActive);
-        }, { once: true });
-    }
-
-    /**
-     * Animates the removal of an element.
-     * @param element The element to animate.
-     */
-    private animateRemove(element: HTMLElement) {
-        const config = this.getTransitionConfig(element);
-
-        // 1. Add the exit classes to trigger the animation
-        element.classList.add(config.exit);
-        requestAnimationFrame(() => { // Ensure styles are applied before active class
-            element.classList.add(config.exitActive);
-        });
-
-        // 2. Wait for the animation to finish, then remove the element
-        element.addEventListener('transitionend', () => {
-            element.remove();
-        }, { once: true });
     }
 
     /**
@@ -129,30 +114,100 @@ export class Interpreter {
     }
 
     /**
-     * Renders a component or a list of components to a target element.
+     * High-level reconciler render.
+     * Reuses DOM nodes when comp.key matches existing element's data-component-key.
+     * For components without a key, falls back to index-based reuse.
      * @param targetElement The target element to render the components to.
      * @param components The component or list of components to render.
      * @returns A Promise that resolves when the components are rendered.
      */
     public async render(targetElement: Element | HTMLElement | ShadowRoot, components: Component | Children | undefined): Promise<void> {
-        if (!components) return;
-        const componentsToRender = Array.isArray(components) ? components : [components];
-
-        for (const comp of componentsToRender) {
-            const element = await this.createComponentElement(comp);
-            if (element) {
-                // may need to adjust for dynamic layout
-                targetElement.appendChild(element);
+        // Normalize the input to always be an array of components
+        if (!components) {
+            // If the desired state is empty, remove all existing children
+            for (const child of Array.from(targetElement.children)) {
+                await removeElementGracefully(child);
             }
-            else {
-                const errorEl = await this.createComponentElement({component: 'error', message: `Error: Cannot create element for '${comp.component}'`
-                , original: comp});
-                if (errorEl) {
-                    targetElement.appendChild(errorEl);
+            return;
+        }
+        const desired: Component[] = Array.isArray(components) ? components : [components];
+
+        // Create a stable copy of the existing DOM elements
+        const existingEls = Array.from(targetElement.children) as HTMLElement[];
+
+        // Build a map of existing elements that have a 'componentKey' for quick lookups
+        const keyedMap = new Map<string, HTMLElement>();
+        existingEls.forEach(el => {
+            const key = readElementKey(el);
+            if (key) {
+                keyedMap.set(key, el);
+            }
+        });
+
+        // A set to keep track of elements that are kept, so we can remove the rest
+        const consumed = new Set<Element>();
+
+        // --- Main Reconciliation Loop ---
+        // Iterate through the desired components and place them in the correct order
+        for (let i = 0; i < desired.length; i++) {
+            const comp = desired[i];
+            const compKey = comp.key ?? null;
+            let reuseEl: HTMLElement | undefined;
+
+            // 1. Find a DOM element to reuse
+            if (compKey) {
+                // If the desired component has a key, try to find a match in our map
+                reuseEl = keyedMap.get(compKey);
+            } else {
+                // For un-keyed components, attempt to reuse the element at the same index
+                const candidate = existingEls[i];
+                // Only reuse if the candidate is also un-keyed and has the same component type
+                if (candidate && !readElementKey(candidate) && readElementType(candidate) === comp.component) {
+                    reuseEl = candidate;
                 }
-                else {
-                    console.error(`Error: Cannot create element for '${comp.component}'`);
-                }
+            }
+
+            // If we found a potential element to reuse, we must verify its type hasn't changed
+            if (reuseEl && readElementType(reuseEl) !== comp.component) {
+                reuseEl = undefined; // Do not reuse if component type is different
+            }
+
+            let elToPlace: HTMLElement | null;
+
+            // 2. Create or Update the element
+            if (reuseEl) {
+                // If we are reusing an element, mark it as consumed
+                consumed.add(reuseEl);
+                elToPlace = reuseEl;
+                // Update its data, which will trigger its 'attributeChangedCallback'
+                elToPlace.setAttribute('data', JSON.stringify(comp));
+                // Trigger a highlight animation to give visual feedback on the update
+                queueMicrotask(() => this.animateUpdate(elToPlace as HTMLElement));
+            } else {
+                // If no element could be reused, create a new one
+                const created = await this.createComponentElement(comp);
+                elToPlace = created;
+            }
+
+            if (!elToPlace) {
+                continue; // Skip if element creation failed
+            }
+
+            // 3. Place the element in the correct DOM position
+            const currentElAtIndex = targetElement.children[i] as HTMLElement | undefined;
+            if (currentElAtIndex !== elToPlace) {
+                // If the element is not already in the correct spot, insert it.
+                // 'insertBefore' with a null reference node will append it to the end.
+                targetElement.insertBefore(elToPlace, currentElAtIndex ?? null);
+            }
+        }
+
+        // --- Cleanup Phase ---
+        // Remove any old elements that were not part of the 'consumed' set
+        for (const el of existingEls) {
+            if (!consumed.has(el)) {
+                // Use the graceful removal function to allow for exit animations
+                await removeElementGracefully(el);
             }
         }
     }
@@ -180,7 +235,7 @@ export class Interpreter {
                     }
                 }
 
-                this.animateAdd(newElement, parentElement);
+                parentElement.appendChild(newElement);
                 break;
             }
 
@@ -203,7 +258,9 @@ export class Interpreter {
                 if (!patch.targetId) return;
                 const elementToRemove = this.findElementById(rootElement, patch.targetId);
                 if (elementToRemove) {
-                    this.animateRemove(elementToRemove);
+                    if (elementToRemove) {
+                        await removeElementGracefully(elementToRemove);
+                    }
                 } else {
                     console.warn(`Element with ID '${patch.targetId}' not found for 'remove' operation.`);
                 }
