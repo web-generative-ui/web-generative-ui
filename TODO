@@ -1,6 +1,4 @@
-Implement Styling & Theming (Design System Integration) (MEDIUM PRIORITY)
-Refine Component styling & theming to match the design system
-Implement dedicated transition for each component state change
+Refine Component styling
 Introduce more flexible layout mechanism
 Accessibility (ONGOING)
 route UI actions out to registered handlers and optionally back to the server via a callback API [ActionDispatcher],
@@ -12,13 +10,12 @@ Components to implement
 Roadmap (phased, incremental)
 Phase 4 — ActionDispatcher & callbacks
 Implement ActionDispatcher with default DOM event hooking.
-Add optional server callback support via transport or HTTP.
-Add onAction hook in start() options.
 
 Phase 5 — Persistence, UI history components, and tooling
 Provide optional history UI components (e.g., UiHistoryList) that read from ConversationStore.
 Add tests, examples, and docs.
 
 Phase 6 — Advanced features
-Branching replies, multi-model session switching, server-initiated instructions (control messages).
+Branching replies, multi-model session switching.
+Parallel processing.
 Access control, telemetry, instrumentation.
