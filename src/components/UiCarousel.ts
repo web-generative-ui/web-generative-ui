@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type {Carousel} from "../schema.ts";
+import type {Carousel, TransitionConfig} from "../schema.ts";
 
 export class UiCarousel extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -11,6 +11,13 @@ export class UiCarousel extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'carousel-item-enter',
+        enterActive: 'carousel-item-enter-active',
+        exit: 'carousel-item-exit',
+        exitActive: 'carousel-item-exit-active'
+    };
 
     protected parseData(data: string): void {
         try {

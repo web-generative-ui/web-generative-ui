@@ -1,5 +1,6 @@
 import type {Box} from "../schema.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
+import {applyLayoutMeta} from "../core/common.ts";
 
 export class UiBox extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -24,16 +25,26 @@ export class UiBox extends BaseUiComponent {
     }
 
     protected renderContent(): void {
+        const { direction = 'column', gap, align, justify, wrap, children } = this.boxData ?? {};
+
         this.shadow.innerHTML = `
         <style>
             :host { display: block; }
             .box {
                 display: flex;
-                flex-direction: column;
+                flex-direction: ${direction};
+                ${gap ? `gap: ${gap};` : ''}
+                ${align ? `align-items: ${align};` : ''}
+                ${justify ? `justify-content: ${justify};` : ''}
+                ${wrap ? 'flex-wrap: wrap;' : ''}
             }
             .box-content {
                 display: flex;
-                flex-direction: column;
+                flex-direction: ${direction};
+                width: 100%;
+            }
+            .child-wrapper {
+                display: flex; /* lets layout grow/shrink work */
             }
         </style>
         <div class="box">
@@ -41,11 +52,18 @@ export class UiBox extends BaseUiComponent {
         </div>
     `;
 
-        if (this.boxData?.children?.items) {
+        if (Array.isArray(children) && children.length > 0) {
             const contentContainer = this.shadow.querySelector('.box-content');
             if (contentContainer) {
-                this.registry.getInterpreter().render(contentContainer, this.boxData.children.items);
+                for (const child of children) {
+                    const wrapper = document.createElement("div");
+                    wrapper.classList.add("child-wrapper");
+
+                    applyLayoutMeta(wrapper, child.layout);
+
+                    contentContainer.appendChild(wrapper);
+                    this.registry.getInterpreter().render(wrapper, child);
+                }
             }
-        }
-    }
+        }    }
 }

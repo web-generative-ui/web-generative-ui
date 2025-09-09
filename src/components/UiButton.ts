@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type { Button } from "../schema.ts";
+import type {Button, TransitionConfig} from "../schema.ts";
 
 export class UiButton extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -9,6 +9,13 @@ export class UiButton extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'btn-rise-enter',
+        enterActive: 'btn-rise-enter-active',
+        exit: 'btn-fade-exit',
+        exitActive: 'btn-fade-exit-active'
+    };
 
     protected parseData(dataString: string) {
         try {

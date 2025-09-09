@@ -1,4 +1,4 @@
-import type {Text} from '../schema.ts';
+import type {Text, TransitionConfig} from '../schema.ts';
 import { BaseUiComponent } from './BaseUiComponent';
 
 export class UiText extends BaseUiComponent {
@@ -9,6 +9,13 @@ export class UiText extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'text-enter',
+        enterActive: 'text-enter-active',
+        exit: 'text-exit',
+        exitActive: 'text-exit-active'
+    };
 
     protected parseData(dataString: string): void {
         try {

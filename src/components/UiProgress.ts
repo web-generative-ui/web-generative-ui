@@ -1,4 +1,4 @@
-import type {Progress} from "../schema.ts";
+import type {Progress, TransitionConfig} from "../schema.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 
 export class UiProgress extends BaseUiComponent {
@@ -9,6 +9,13 @@ export class UiProgress extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'progress-enter',
+        enterActive: 'progress-enter-active',
+        exit: 'progress-exit',
+        exitActive: 'progress-exit-active'
+    };
 
     protected parseData(dataString: string) {
         try {

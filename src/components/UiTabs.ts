@@ -1,5 +1,5 @@
 import {BaseUiComponent} from "./BaseUiComponent.ts";
-import type {Tabs} from "../schema.ts";
+import type {Tabs, TransitionConfig} from "../schema.ts";
 
 export class UiTabs extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -10,6 +10,13 @@ export class UiTabs extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'tab-content-enter',
+        enterActive: 'tab-content-enter-active',
+        exit: 'tab-content-exit',
+        exitActive: 'tab-content-exit-active'
+    };
 
     protected parseData(data: string): void {
         try {

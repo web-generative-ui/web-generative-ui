@@ -36,37 +36,44 @@ export class UiCollapseBlock extends BaseUiComponent {
         const { title } = this.blockData!;
 
         this.shadow.innerHTML = `
-            <style>
-                :host {
-                    display: block;
-                    border: 1px solid #ccc;
-                    border-radius: 6px;
-                    margin: 0.5em 0;
-                    font-family: sans-serif;
-                }
-                .header {
-                    background: #f5f5f5;
-                    padding: 0.5em 1em;
-                    cursor: pointer;
-                    font-weight: bold;
-                    user-select: none;
-                }
-                .body {
-                    padding: 1em;
-                    display: ${this.isCollapsed ? "none" : "block"};
-                }
-            </style>
-            <div class="header">${title}</div>
-            <div class="body box-content"></div>
-        `;
-
+        <style>
+            :host {
+                display: block;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                margin: 0.5em 0;
+                font-family: sans-serif;
+            }
+            .header {
+                background: #f5f5f5;
+                padding: 0.5em 1em;
+                cursor: pointer;
+                font-weight: bold;
+                user-select: none;
+            }
+            .body {
+                overflow: hidden;
+                max-height: 0;
+                opacity: 0;
+                transition: max-height 300ms ease, opacity 200ms ease;
+            }
+            .body.expanded {
+                opacity: 1;
+            }
+        </style>
+        <div class="header">${title}</div>
+        <div class="body box-content ${this.isCollapsed ? "" : "expanded"}"></div>
+    `;
         const header = this.shadow.querySelector(".header");
         const body = this.shadow.querySelector(".body") as HTMLElement;
+
+        const scrollHeight = body.scrollHeight;
+        body.style.maxHeight = this.isCollapsed ? "0" : `${scrollHeight}px`;
 
         if (header && body) {
             header.addEventListener("click", () => {
                 this.isCollapsed = !this.isCollapsed;
-                body.style.display = this.isCollapsed ? "none" : "block";
+                body.classList.toggle("expanded", !this.isCollapsed);
             });
 
             if (this.blockData?.content) {

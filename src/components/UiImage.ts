@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type { Image } from "../schema.ts";
+import type {Image, TransitionConfig} from "../schema.ts";
 
 export class UiImage extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -9,6 +9,13 @@ export class UiImage extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'image-fade-enter',
+        enterActive: 'image-fade-enter-active',
+        exit: 'image-fade-exit',
+        exitActive: 'image-fade-exit-active'
+    };
 
     protected parseData(dataString: string) {
         try {

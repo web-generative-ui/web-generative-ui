@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type { Loading } from "../schema.ts";
+import type {Loading, TransitionConfig} from "../schema.ts";
 
 export class UiLoading extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -9,6 +9,13 @@ export class UiLoading extends BaseUiComponent {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'loading-enter',
+        enterActive: 'loading-enter-active',
+        exit: 'loading-exit',
+        exitActive: 'loading-exit-active'
+    };
 
     protected parseData(dataString: string) {
         try {

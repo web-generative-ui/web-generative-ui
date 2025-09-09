@@ -1,5 +1,6 @@
 import type {Grid} from "../schema.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
+import {applyLayoutMeta} from "../core/common.ts";
 
 export class UiGrid extends BaseUiComponent {
 
@@ -15,7 +16,7 @@ export class UiGrid extends BaseUiComponent {
         try {
             this.gridData = JSON.parse(dataString) as Grid;
         } catch (e) {
-            console.error("UiImage: Failed to parse data attribute:", e);
+            console.error("UiGrid: Failed to parse data attribute:", e);
             this.gridData = null;
         }
     }
@@ -27,32 +28,44 @@ export class UiGrid extends BaseUiComponent {
     protected renderContent(): void {
         if (!this.gridData) return;
 
+        const { gap = "1rem", children } = this.gridData;
+
         this.shadow.innerHTML = `
             <style>
                 :host { display: block; }
                 .grid {
                     display: grid;
                     grid-template-columns: ${this.resolveColumns()};
-                    gap: ${this.gridData.gap || '1rem'};
+                    gap: ${gap};
+                }
+                .child-wrapper {
+                    display: block;
                 }
             </style>
             <div class="grid"></div>
         `;
 
-        const gridContainer = this.shadow.querySelector('.grid');
-        if (gridContainer && this.gridData.children?.items) {
-            this.registry.getInterpreter().render(gridContainer, this.gridData.children.items);
+        const gridContainer = this.shadow.querySelector(".grid");
+        if (gridContainer && Array.isArray(children) && children.length > 0) {
+            for (const child of children) {
+                const wrapper = document.createElement("div");
+                wrapper.classList.add("child-wrapper");
+
+                applyLayoutMeta(wrapper, child.layout);
+
+                gridContainer.appendChild(wrapper);
+                this.registry.getInterpreter().render(wrapper, child);
+            }
         }
     }
 
     private resolveColumns(): string {
-        if (this.gridData && this.gridData.columns){
-            if (typeof this.gridData.columns === 'number') {
+        if (this.gridData?.columns) {
+            if (typeof this.gridData.columns === "number") {
                 return `repeat(${this.gridData.columns}, 1fr)`;
             }
             return this.gridData.columns;
         }
-
-        return '1fr';
+        return "1fr";
     }
 }

@@ -1,19 +1,56 @@
-/**
- * The base interface for all UI components. It ensures that every component
- * can have a unique 'id', which is essential for partial/streamed updates.
- */
-export interface BaseComponent {
-    component: string;
+export type PatchOperation = 'add' | 'update' | 'remove';
+
+export interface Patch {
+    /** The operation to perform. */
+    op: PatchOperation;
+
     /**
-     * A unique identifier for this component instance. Crucial for partial updates.
+     * For 'add' operations: The ID of the parent component to append to.
+     * If null or undefined, appends to the root container.
      */
-    id?: string;
+    path?: string | null;
+
+    /**
+     * For 'update' and 'remove' operations: The ID of the component to target.
+     */
+    targetId?: string;
+
+    /** The component data to use for the 'add' or 'update' operation. */
+    value: Component;
 }
 
 /**
  * An array of UI components to be rendered (can be a nested child of a child component).
  */
 export type Children = Component[];
+
+/** layout metadata used by containers (optional) */
+export interface LayoutMeta {
+    /** grid/flex span: number of columns or css span (optional) */
+    span?: number | string;
+    /** ordering hint */
+    order?: number;
+    /** alignment inside container */
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    /** flex-grow numeric */
+    grow?: number;
+    /** flex-basis like '200px' */
+    basis?: string;
+    /** named grid area */
+    area?: string;
+}
+
+/**
+ * The base interface for all UI components. It ensures that every component
+ * can have a unique 'id', which is essential for partial/streamed updates.
+ */
+export interface BaseComponent {
+    component: string;
+    key?: string;           // optional stable id used for reconciliation
+    layout?: LayoutMeta;    // optional layout hints consumed by containers
+    id?: string;
+    children?: Children;
+}
 
 /**
  * A union of all possible UI components that can be rendered.
@@ -50,7 +87,7 @@ export interface Table extends BaseComponent {
     component: 'table';
     data: { [k: string]: any; }[];
     columns: { key: string; header: string; }[];
-    children?: { items: (Image | Button | Text | Badge | Link)[]; };
+    children?: Children
 }
 
 export interface Chart extends BaseComponent {
@@ -74,7 +111,7 @@ export interface Grid extends BaseComponent {
     /** Gap between grid items (default 1rem) */
     gap?: string;
     /** Children that can be placed inside the grid */
-    children: { items: (Card | Image | Button)[] };
+    children: Children;
 }
 
 export interface Spacer extends BaseComponent {
@@ -101,12 +138,13 @@ export interface Stream extends BaseComponent {
     component: 'stream';
     direction?: 'up' | 'down';
     items: {
-        id?: string; // This is an ID for an *item within* the stream, distinct from the stream's own ID
+        id?: string;  // item-level id stays (for streaming entries)
         timestamp?: string;
         author?: string;
         content: string | Text | Card | Image | Video | CodeBlock;
         status?: 'pending' | 'completed' | 'error';
         extra?: { [k: string]: any; };
+        key?: string; // optional per-item key (useful for diffing stream items)
     }[];
 }
 
@@ -120,7 +158,7 @@ export interface Carousel extends BaseComponent {
 export interface Card extends BaseComponent {
     component: 'card';
     title: string;
-    children?: { items?: Children; };
+    children?: Children;
 }
 
 export interface Text extends BaseComponent {
@@ -174,7 +212,7 @@ export interface Link extends BaseComponent {
     component: 'link';
     href: string;
     target?: '_blank' | '_self' | '_parent' | '_top';
-    children: { items?: (Text | Icon | Image | Badge)[]; };
+    children: Children
 }
 
 export interface Badge extends BaseComponent {
@@ -203,7 +241,12 @@ export interface Loading extends BaseComponent {
 
 export interface Box extends BaseComponent {
     component: 'box';
-    children?: { items?: Children; };
+    direction?: 'row' | 'column';
+    gap?: string;
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    justify?: 'start' | 'center' | 'end' | 'space-between' | 'space-around';
+    wrap?: boolean;
+    children?: Children;
 }
 
 export interface Divider extends BaseComponent {

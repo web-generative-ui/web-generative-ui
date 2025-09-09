@@ -17,11 +17,9 @@ export class UiTimeline extends BaseUiComponent {
                 throw new Error("Invalid timeline component data");
             }
             this.timelineData = parsed;
-            this.renderContent();
         } catch (e) {
             console.error("UiTimeline parseData error:", e);
             this.timelineData = null;
-            this.renderContent();
         }
     }
 
@@ -88,7 +86,7 @@ export class UiTimeline extends BaseUiComponent {
                     <div class="timeline-item" data-idx="${idx}">
                         <div class="marker ${item.status ?? "default"}"></div>
                         <div class="content">
-                            ${item.time ? `<div class="time">${item.time}</div>` : ""}
+                            ${item.time ? `<div class="time">${new Date(item.time).toLocaleString()}</div>` : ""}
                             <div class="title">${item.title}</div>
                             ${item.description ? `<div class="description">${item.description}</div>` : ""}
                             <div class="media"></div>

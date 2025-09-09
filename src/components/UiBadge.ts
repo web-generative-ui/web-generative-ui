@@ -1,4 +1,4 @@
-import type {Badge} from "../schema.ts";
+import type {Badge, TransitionConfig} from "../schema.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 
 export class UiBadge extends BaseUiComponent {
@@ -8,6 +8,13 @@ export class UiBadge extends BaseUiComponent {
     constructor() {
         super();
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
+    }
+
+    public static override transitionConfig: Partial<TransitionConfig> = {
+        enter: 'badge-pop-enter',
+        enterActive: 'badge-pop-enter-active',
+        exit: 'badge-pop-exit',
+        exitActive: 'badge-pop-exit-active'
     }
 
     protected parseData(dataString: string) {
