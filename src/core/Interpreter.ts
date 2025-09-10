@@ -44,6 +44,11 @@ export class Interpreter {
      * traversing through Shadow DOM boundaries.
      */
     private findElementById(root: Document | HTMLElement | ShadowRoot, id: string): HTMLElement | null {
+        // Skip history panel elements
+        if (root instanceof HTMLElement && root.closest('.history-panel, ui-history')) {
+            return null;
+        }
+
         const found = root.querySelector(`#${id}`);
         if (found) {
             return found as HTMLElement;
@@ -51,6 +56,11 @@ export class Interpreter {
 
         const elements = root.querySelectorAll('*');
         for (const element of elements) {
+            // Skip history panel elements
+            if (element.closest('.history-panel, ui-history')) {
+                continue;
+            }
+
             if (element.shadowRoot) {
                 const foundInShadow = this.findElementById(element.shadowRoot, id);
                 if (foundInShadow) {
@@ -122,6 +132,9 @@ export class Interpreter {
      * @returns A Promise that resolves when the components are rendered.
      */
     public async render(targetElement: Element | HTMLElement | ShadowRoot, components: Component | Children | undefined): Promise<void> {
+        if (targetElement instanceof HTMLElement && targetElement.closest('.history-panel, ui-history')) {
+            return;
+        }
         // Normalize the input to always be an array of components
         if (!components) {
             // If the desired state is empty, remove all existing children
@@ -185,8 +198,7 @@ export class Interpreter {
                 queueMicrotask(() => this.animateUpdate(elToPlace as HTMLElement));
             } else {
                 // If no element could be reused, create a new one
-                const created = await this.createComponentElement(comp);
-                elToPlace = created;
+                elToPlace = await this.createComponentElement(comp);
             }
 
             if (!elToPlace) {

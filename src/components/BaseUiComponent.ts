@@ -1,6 +1,6 @@
-import type { Registry } from "../core/Registry.ts";
-import type { TransitionConfig } from "../schema.ts";
-import type { Children } from "../schema.ts";
+import type {Registry} from "../core/Registry.ts";
+import type {TransitionConfig} from "../schema.ts";
+import type {ConversationStore} from "../core/conversation/ConversationStore.ts";
 
 /**
  * Base class for UI components.
@@ -14,8 +14,10 @@ import type { Children } from "../schema.ts";
 export abstract class BaseUiComponent extends HTMLElement {
     protected abstract shadow: ShadowRoot;
     protected readonly registry: Registry;
+    protected readonly store: ConversationStore;
 
     private static _registry: Registry | null = null;
+    private static _store: ConversationStore | null = null;
 
     /** Per-class transition config. Subclasses may override. */
     public static transitionConfig: Partial<TransitionConfig> = {};
@@ -27,17 +29,23 @@ export abstract class BaseUiComponent extends HTMLElement {
     protected componentKey?: string;
     protected componentLayout?: Record<string, unknown> | undefined;
 
+    // NEW: Add static setters for store and interpreter
+    public static setConversationStore(store: ConversationStore): void {
+        BaseUiComponent._store = store;
+    }
+
     public static setRegistry(registry: Registry): void {
-        // fixed stray character and made idempotent
         BaseUiComponent._registry = registry;
     }
 
     protected constructor() {
         super();
-        if (BaseUiComponent._registry === null) {
-            throw new Error("Registry has not been set for BaseUiComponent. Call BaseUiComponent.setRegistry() first.");
+        if (BaseUiComponent._registry === null || BaseUiComponent._store === null) {
+            throw new Error("Core services (Registry, Store, Interpreter) have not been set for BaseUiComponent.");
         }
         this.registry = BaseUiComponent._registry;
+        this.registry = BaseUiComponent._registry;
+        this.store = BaseUiComponent._store;
     }
 
     /* ---------- attributes lifecycle ---------- */
@@ -123,16 +131,6 @@ export abstract class BaseUiComponent extends HTMLElement {
         } else {
             delete host.dataset['componentLayout'];
         }
-    }
-
-    /**
-     * Convenience for container components: render children into a container using the registry's interpreter.
-     * Normalizes `children` if `undefined` harmlessly.
-     */
-    protected async renderChildrenInto(container: Element | HTMLElement | ShadowRoot, children?: Children): Promise<void> {
-        if (!children || children.length === 0) return;
-        await this.registry.ensurePayloadComponentsDefined(children);
-        await this.registry.getInterpreter().render(container, children);
     }
 
     /* ---------- transition helpers (enter/exit) ---------- */

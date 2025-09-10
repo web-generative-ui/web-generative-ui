@@ -16,7 +16,6 @@ export class ConversationManager {
         this.transport = transport;
         this.store = store;
 
-        // wire transport -> manager if transport is present
         if (this.transport) {
             if (this.transport.onMessage) {
                 this.transport.onMessage((env: any) => this.handleIncomingEnvelope(env).catch(console.error));

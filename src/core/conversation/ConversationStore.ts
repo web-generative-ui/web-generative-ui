@@ -9,6 +9,7 @@ export interface PersistenceStrategy {
 
 export class ConversationStore {
     private memoryStore: Map<string, Envelope[]>;
+    private listeners: Map<string, ((...args: any[]) => void)[]> = new Map();
     private readonly persistence?: PersistenceStrategy;
 
     constructor(persistence?: PersistenceStrategy) {
@@ -45,6 +46,8 @@ export class ConversationStore {
         if (this.persistence) {
             await this.persistence.appendMessage(envelope);
         }
+
+        this._emit('update', envelope.convId);
     }
 
     async appendFromEnvelope(envelope: any): Promise<void> {
@@ -53,6 +56,33 @@ export class ConversationStore {
         }
 
         await this.appendMessage(envelope);
+    }
+
+    public on(event: string, callback: (...args: any[]) => void): void {
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, []);
+        }
+        this.listeners.get(event)!.push(callback);
+    }
+
+    public off(event: string, callback: (...args: any[]) => void): void {
+        const callbacks = this.listeners.get(event);
+        if (!callbacks) {
+            return;
+        }
+        const index = callbacks.indexOf(callback);
+        if (index !== -1) {
+            callbacks.splice(index, 1);
+            if (callbacks.length === 0) {
+                this.listeners.delete(event);
+            }
+        }
+    }
+
+    private _emit(event: string, ...args: any[]): void {
+        if (this.listeners.has(event)) {
+            this.listeners.get(event)!.forEach(cb => cb(...args));
+        }
     }
 
     async getHistory(convId: string, opts: { limit?: number; fromTurnId?: string } = {}): Promise<any[]> {
