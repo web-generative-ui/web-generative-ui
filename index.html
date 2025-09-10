@@ -7,8 +7,22 @@
     <title>Generative UI</title>
 </head>
 <body>
-<button id="trigger">MAKE API CALL</button>
 <div id="container"></div>
+<button id="trigger">Send Message</button>
+
+<!-- History controls -->
+<button id="toggle-history">Toggle History</button>
+<button id="refresh-history">Refresh History</button>
+<button id="hide-history">Hide History</button>
+
+<!-- Multi-conversation controls -->
+<button id="new-chat">New Chat</button>
+<label for="chat-selector"></label><select id="chat-selector">
+    <option value="">Select conversation...</option>
+</select>
+
+<!-- Export functionality -->
+<button id="export-conversation">Export Conversation</button>
 <script type="module" src="./src/main.ts"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
-import {BaseUiComponent} from "./BaseUiComponent.ts";
-import type {Image, Link, Text} from "../schema.ts";
+import type { Link } from "../schema.ts";
+import { BaseUiComponent } from "./BaseUiComponent.ts";
+import { applyLayoutMeta } from "../core/common.ts";
 
 export class UiLink extends BaseUiComponent {
     protected shadow: ShadowRoot;
@@ -10,7 +11,7 @@ export class UiLink extends BaseUiComponent {
         this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
 
-    protected parseData(dataString: string) {
+    protected parseData(dataString: string): void {
         try {
             this.linkData = JSON.parse(dataString) as Link;
         } catch (e) {
@@ -27,21 +28,6 @@ export class UiLink extends BaseUiComponent {
         if (!this.linkData) return;
 
         const { href, target, children } = this.linkData;
-        const items = children?.items || [];
-        const contentHTML = items.map(item => {
-            switch (item.component) {
-                case 'text':
-                    return `<span>${(item as Text).text}</span>`;
-                case 'icon':
-                    return `<ui-icon data='${JSON.stringify(item)}'></ui-icon>`;
-                case 'image':
-                    return `<ui-image src="${(item as Image).src}" alt="${(item as Image).alt || ''}" />`;
-                case 'badge':
-                    return `<ui-badge data='${JSON.stringify(item)}'></ui-badge>`;
-                default:
-                    return '';
-            }
-        }).join('');
 
         this.shadow.innerHTML = `
             <style>
@@ -57,9 +43,18 @@ export class UiLink extends BaseUiComponent {
                     text-decoration: underline;
                 }
             </style>
-            <a href="${href}" ${target ? `target="${target}"` : ''}>
-                ${contentHTML}
-            </a>
+            <a href="${href}" ${target ? `target="${target}"` : ""}></a>
         `;
+
+        const anchor = this.shadow.querySelector("a");
+        if (anchor && Array.isArray(children)) {
+            for (const child of children) {
+                const wrapper = document.createElement("span");
+                applyLayoutMeta(wrapper, child.layout);
+
+                anchor.appendChild(wrapper);
+                this.registry.getInterpreter().render(wrapper, child);
+            }
+        }
     }
 }

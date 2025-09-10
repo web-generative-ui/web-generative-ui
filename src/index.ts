@@ -8,6 +8,7 @@ import {WebSocketTransport} from "./core/transport/WebSocketTransport.ts";
 import {ConversationStore} from "./core/conversation/ConversationStore.ts";
 import {LocalStoragePersistence} from "./core/conversation/LocalStoragePersistence.ts";
 import {ConversationManager} from "./core/conversation/ConversationManager.ts";
+import {HistoryContextManager} from "./core/conversation/HistoryContextManager.ts";
 
 type GenerativeUIInstance = {
     createConversation: (id?: string) => Promise<string>;
@@ -24,6 +25,11 @@ type GenerativeUIInstance = {
     extractMessageContent: (messages: any[]) => any[];
     getLastUserContext: (convId: string) => Promise<any>;
 
+    showHistoryContext: (convId: string) => void;
+    hideHistoryContext: () => void;
+    toggleHistoryContext: (convId?: string) => void;
+    updateHistoryContext: (convId: string) => void;
+
     conversationManager: ConversationManager;
     registry: Registry;
     interpreter: Interpreter;
@@ -39,6 +45,7 @@ const GenerativeUI = {
         const interpreter = new Interpreter(registry);
         registry.setInterpreter(interpreter);
         BaseUiComponent.setRegistry(registry);
+
         return registry;
     },
 
@@ -102,12 +109,30 @@ const GenerativeUI = {
             (opts as any).enableLocalPersistence ? new LocalStoragePersistence() : undefined
         );
 
+        BaseUiComponent.setConversationStore(store);
+
+        // Create history context manager if enabled
+        let historyManager: HistoryContextManager | null = null;
+        let renderTarget = rootEl as HTMLElement;
+
+        if (opts.historyContext?.enabled) {
+            historyManager = new HistoryContextManager(rootEl as HTMLElement, opts.historyContext);
+            renderTarget = historyManager.getMainContentElement();
+        }
+
         const conversationManager = new ConversationManager(
             interpreter,
-            rootEl as HTMLElement,
+            renderTarget,
             store,
             transport
         );
+
+        // Listen for conversation updates to auto-update history
+        if (historyManager && opts.historyContext?.autoUpdate !== false) {
+            store.on('update', (convId: string) => {
+                historyManager!.update(convId);
+            });
+        }
 
         return {
             // advanced access (optional)
@@ -121,8 +146,8 @@ const GenerativeUI = {
 
             // normalize string => { text } and forward to the internal API
             sendMessage: (convId: string, msg: string | { text?: string; [k: string]: any }) => {
-                conversationManager.clearContainer()
-                return conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg)
+                // conversationManager.clearContainer();
+                return conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg);
             },
 
             getConversationHistory: (convId: string) =>
@@ -145,6 +170,39 @@ const GenerativeUI = {
                     .filter(env => env.payload?.role === 'user')
                     .pop();
                 return lastUserMessage?.payload?.content;
+            },
+
+            // New history context methods
+            showHistoryContext: (convId: string) => {
+                if (historyManager) {
+                    historyManager.show(convId);
+                } else {
+                    console.warn('History context is not enabled. Set historyContext.enabled to true in config.');
+                }
+            },
+
+            hideHistoryContext: () => {
+                if (historyManager) {
+                    historyManager.hide();
+                } else {
+                    console.warn('History context is not enabled.');
+                }
+            },
+
+            toggleHistoryContext: (convId?: string) => {
+                if (historyManager) {
+                    historyManager.toggle(convId);
+                } else {
+                    console.warn('History context is not enabled.');
+                }
+            },
+
+            updateHistoryContext: (convId: string) => {
+                if (historyManager) {
+                    historyManager.update(convId);
+                } else {
+                    console.warn('History context is not enabled.');
+                }
             },
 
             // open the underlying transport (safe no-op if missing)

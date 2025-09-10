@@ -36,6 +36,7 @@ export class Registry {
         'stream': () => import('../components/UiStream').then(mod => ({ default: mod.UiStream })),
         'table': () => import('../components/UiTable').then(mod => ({ default: mod.UiTable })),
         'error': () => import('../components/UiError').then(mod => ({ default: mod.UiError })),
+        'history': () => import('../components/UiHistoryList.ts').then(mod => ({ default: mod.UiHistoryList })),
     };
 
     constructor() {}
