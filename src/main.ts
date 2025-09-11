@@ -39,23 +39,6 @@ const ui = await GenerativeUI.init({
         type: "websocket",
         url: "ws://localhost:3000/ws",
     },
-    historyContext: {
-        enabled: true,
-        position: "left",
-        width: "320px",
-        title: "Chat History",
-        chunkable: true,
-        defaultCollapsed: false,
-        chunkSize: 2,
-        style: {
-            backgroundColor: "#f8f9fa",
-            borderColor: "#e9ecef",
-            accentColor: "#007bff",
-        },
-        collapsible: true,
-        limit: 20,
-        autoUpdate: true,
-    },
 });
 
 await ui.connect();
