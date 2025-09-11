@@ -4,51 +4,79 @@ import type {Registry} from "./Registry.ts";
 import type {Envelope} from "./transport/types.ts";
 
 /**
- * Read metadata
+ * Reads the unique component key from a given HTML element's `data-component-key` attribute.
+ * This key is used for efficient DOM reconciliation.
+ * @param element The HTML element to inspect.
+ * @returns The component key string, or `undefined` if not found or if the element is null.
  */
-function readElementKey(el: Element | null): string | undefined {
-    if (!el) return undefined;
-    return (el as HTMLElement).dataset['componentKey'];
-}
-function readElementType(el: Element | null): string | undefined {
-    if (!el) return undefined;
-    return (el as HTMLElement).dataset['componentType'];
-}
-
-async function removeElementGracefully(el: Element) {
-    // if the element is a custom element instance with willExit, call it
-    const maybeComp = el as unknown as { willExit?: () => Promise<void> };
-    if (typeof maybeComp.willExit === 'function') {
-        try {
-            await maybeComp.willExit();
-        } catch {
-            // swallow; proceed to remove
-        }
-    }
-    if (el.parentElement) el.parentElement.removeChild(el);
+function readElementKey(element: Element | null): string | undefined {
+    if (!element) return undefined;
+    return (element as HTMLElement).dataset['componentKey'];
 }
 
 /**
- * The Interpreter class is responsible for rendering and applying patches to the UI.
- * It handles the dynamic creation and update of custom elements based on the provided data.
+ * Reads the component type from a given HTML element's `data-component-type` attribute.
+ * This type typically corresponds to the `component` field in the UI schema (e.g., 'card', 'text').
+ * @param element The HTML element to inspect.
+ * @returns The component type string, or `undefined` if not found or if the element is null.
+ */
+function readElementType(element: Element | null): string | undefined {
+    if (!element) return undefined;
+    return (element as HTMLElement).dataset['componentType'];
+}
+
+/**
+ * Gracefully removes an HTML element from the DOM.
+ * If the element is a custom element instance and implements a `willExit()` method,
+ * that method will be awaited to allow for custom exit animations or cleanup logic before removal.
+ * Any errors during `willExit()` execution are swallowed, and the element is still removed.
+ * @param element The HTML element to remove.
+ * @returns A promise that resolves once the element has been removed or its `willExit` method completes.
+ */
+async function removeElementGracefully(element: Element) {
+    // if the element is a custom element instance with willExit, call it
+    const componentInstance = element as unknown as { willExit?: () => Promise<void> };
+    if (typeof componentInstance.willExit === 'function') {
+        try {
+            await componentInstance.willExit();
+        } catch {
+            // Swallow error; proceed to remove the element regardless
+        }
+    }
+    if (element.parentElement) element.parentElement.removeChild(element);
+}
+
+/**
+ * The Interpreter class is responsible for dynamically rendering UI components,
+ * applying updates via patches, and reconciling the DOM based on a declarative schema.
+ * It acts as the core engine for turning data into interactive UI elements.
  */
 export class Interpreter {
+    /**
+     * An instance of the Registry, used to ensure that required UI components are loaded
+     * and defined as custom elements before they are instantiated.
+     * @private
+     */
     private registry: Registry;
 
+    /**
+     * Creates an instance of the Interpreter.
+     * @param registry The Registry instance used to manage component loading and definition.
+     */
     constructor(registry: Registry) {
         this.registry = registry;
     }
 
     /**
-     * A helper function that can find an element by its ID,
-     * traversing through Shadow DOM boundaries.
+     * A helper function that searches for an HTML element by its ID within a given root.
+     * This function is capable of traversing through Shadow DOM boundaries recursively.
+     *
+     * @param root The starting point for the search (Document, HTMLElement, or ShadowRoot).
+     * @param id The HTML `id` attribute value of the element to find.
+     * @returns The found HTMLElement, or `null` if no element with the given ID is found after traversing.
+     * @private
      */
     private findElementById(root: Document | HTMLElement | ShadowRoot, id: string): HTMLElement | null {
-        // Skip history panel elements
-        if (root instanceof HTMLElement && root.closest('.history-panel, ui-history')) {
-            return null;
-        }
-
         const found = root.querySelector(`#${id}`);
         if (found) {
             return found as HTMLElement;
@@ -56,11 +84,6 @@ export class Interpreter {
 
         const elements = root.querySelectorAll('*');
         for (const element of elements) {
-            // Skip history panel elements
-            if (element.closest('.history-panel, ui-history')) {
-                continue;
-            }
-
             if (element.shadowRoot) {
                 const foundInShadow = this.findElementById(element.shadowRoot, id);
                 if (foundInShadow) {
@@ -73,28 +96,44 @@ export class Interpreter {
     }
 
     /**
-     * Creates a custom element for given component data.
-     * @param componentData The component data to create the element for.
-     * @returns A Promise that resolves to the created custom element.
+     * Creates a new custom HTML element based on the provided component data.
+     * It ensures the component's custom element definition is loaded via the Registry
+     * before instantiating the element. The element's `data` attribute is populated
+     * with the stringified component data, and its `id` is set if provided.
+     *
+     * @param desiredComponent The component data (schema) used to create the element.
+     * @returns A Promise that resolves to the newly created custom HTMLElement, or `null` if the component's tag mapping is missing or creation fails.
+     * @private
      */
-    private async createComponentElement(componentData: Component): Promise<HTMLElement | null> {
-        await this.registry.ensureComponentDefined(componentData.component);
-        // await this.registry.ensurePayloadComponentsDefined(componentData)
+    private async createComponentElement(desiredComponent: Component): Promise<HTMLElement | null> {
+        await this.registry.ensureComponentDefined(desiredComponent.component);
+        // await this.registry.ensurePayloadComponentsDefined(desiredComponent)
 
-        const tagName = componentTagMap[componentData.component as string];
+        const tagName = componentTagMap[desiredComponent.component as string];
         if (!tagName) {
-            console.error(`Error: Cannot create element for '${componentData.component}' because no tag mapping exists.`);
+            console.error(`Error: Cannot create element for '${desiredComponent.component}' because no tag mapping exists.`);
             return null;
         }
 
-        const customElement = document.createElement(tagName);
-        if (componentData.id) {
-            customElement.id = componentData.id;
+        const newCustomElement = document.createElement(tagName);
+        if (desiredComponent.id) {
+            newCustomElement.id = desiredComponent.id;
         }
-        customElement.setAttribute('data', JSON.stringify(componentData));
-        return customElement;
+
+        // Set data attribute to pass component properties, triggering 'attributeChangedCallback' in custom elements
+        newCustomElement.setAttribute('data', JSON.stringify(desiredComponent));
+        return newCustomElement;
     }
 
+    /**
+     * Retrieves the transition configuration for a given custom element.
+     * This configuration defines CSS class names used for various transition states (enter, exit, update, highlight).
+     * It checks for a `transitionConfig` static property on the component's class, falling back to default values.
+     *
+     * @param element The HTMLElement for which to get the transition configuration.
+     * @returns A `TransitionConfig` object containing CSS class names for different animation phases.
+     * @private
+     */
     private getTransitionConfig(element: HTMLElement): TransitionConfig {
         const componentClass = element.constructor as any;
         const customConfig: Partial<TransitionConfig> = componentClass.transitionConfig || {};
@@ -110,128 +149,183 @@ export class Interpreter {
     }
 
     /**
-     * Animates the addition or removal of an element.
-     * @param element The element to animate.
+     * Applies a temporary highlight animation to an element to visually indicate an update.
+     * It adds an 'update' CSS class (from the component's transition config) and removes it
+     * after the animation concludes.
+     *
+     * @param element The HTMLElement to animate.
+     * @private
      */
     private animateUpdate(element: HTMLElement) {
-        const config = this.getTransitionConfig(element);
-
-        // For updates, temporary adds a highlight class
-        element.classList.add(config.update);
+        const transitionConfig = this.getTransitionConfig(element);
+        element.classList.add(transitionConfig.update);
         element.addEventListener('animationend', () => {
-            element.classList.remove(config.update);
+            element.classList.remove(transitionConfig.update);
         }, { once: true });
     }
 
     /**
-     * High-level reconciler render.
-     * Reuses DOM nodes when comp.key matches existing element's data-component-key.
-     * For components without a key, falls back to index-based reuse.
-     * @param targetElement The target element to render the components to.
-     * @param components The component or list of components to render.
-     * @returns A Promise that resolves when the components are rendered.
+     * Determines which existing DOM element, if any, can be reused for a desired component.
+     * Prioritizes key-based reuse, then index-based reuse for unkeyed parts of the same type.
+     * @private
+     * @param desiredComponent The component schema to find a match for.
+     * @param index The current index in the desired components list.
+     * @param existingElements An array of currently rendered DOM elements.
+     * @param keyedMap A map of existing keyed elements for quick lookup.
+     * @returns An HTMLElement that can be reused, or `undefined` if no suitable element is found.
+     */
+    private _findReusableElement(
+        desiredComponent: Component,
+        index: number,
+        existingElements: HTMLElement[],
+        keyedMap: Map<string, HTMLElement>
+    ): HTMLElement | undefined {
+        const desiredComponentKey = desiredComponent.key ?? null;
+        let reusableElement: HTMLElement | undefined;
+
+        if (desiredComponentKey) {
+            reusableElement = keyedMap.get(desiredComponentKey);
+        } else {
+            // For unkeyed components, attempt to reuse the element at the same index
+            const candidate = existingElements[index];
+            if (candidate && !readElementKey(candidate) && readElementType(candidate) === desiredComponent.component) {
+                reusableElement = candidate;
+            }
+        }
+
+        // Final check: if we found an element, ensure its type hasn't changed
+        if (reusableElement && readElementType(reusableElement) !== desiredComponent.component) {
+            reusableElement = undefined; // Cannot reuse if the component type is different
+        }
+        return reusableElement;
+    }
+
+    /**
+     * Creates a new element or updates an existing one based on the desired component data.
+     * @private
+     * @param desiredComponent The component schema.
+     * @param existingElementToReuse An optional existing element to update.
+     * @param consumed A set to track elements that have been reused.
+     * @returns A promise is resolving to the final HTMLElement to place, or null if creation failed.
+     */
+    private async _createOrUpdateElement(
+        desiredComponent: Component,
+        existingElementToReuse: HTMLElement | undefined,
+        consumed: Set<Element>
+    ): Promise<HTMLElement | null> {
+        let finalElementToPlace: HTMLElement | null;
+
+        if (existingElementToReuse) {
+            consumed.add(existingElementToReuse);
+            finalElementToPlace = existingElementToReuse;
+            finalElementToPlace.setAttribute('data', JSON.stringify(desiredComponent));
+            queueMicrotask(() => this.animateUpdate(finalElementToPlace as HTMLElement));
+        } else {
+            finalElementToPlace = await this.createComponentElement(desiredComponent);
+        }
+        return finalElementToPlace;
+    }
+
+    /**
+     * Places an element into the correct DOM position within the target parent.
+     * @private
+     * @param targetParent The parent element/ShadowRoot.
+     * @param elementToPlace The element to position.
+     * @param index The desired index for the element.
+     */
+    private _placeElement(
+        targetParent: Element | HTMLElement | ShadowRoot,
+        elementToPlace: HTMLElement,
+        index: number
+    ): void {
+        const currentElementAtIndex = targetParent.children[index] as HTMLElement | undefined;
+        if (currentElementAtIndex !== elementToPlace) {
+            targetParent.insertBefore(elementToPlace, currentElementAtIndex ?? null);
+        }
+    }
+
+    /**
+     * Performs high-level DOM reconciliation, rendering a desired set of components into a target element.
+     * This method efficiently updates the DOM by reusing existing elements where possible, based on
+     * a component's `key` property (for stable element identity) or by index and component type.
+     *
+     * Elements with matching keys are updated, unkeyed elements are reused by index if their type matches,
+     * new elements are created, and old, unneeded elements are gracefully removed.
+     *
+     * @param targetElement The DOM element or ShadowRoot where the components should be rendered.
+     * @param components The desired component(s) to render. Can be a single `Component` object,
+     *                   an array of `Children` (Components), or `undefined` to clear the target.
+     * @returns A Promise that resolves to `void` when the reconciliation and rendering process is complete.
      */
     public async render(targetElement: Element | HTMLElement | ShadowRoot, components: Component | Children | undefined): Promise<void> {
-        if (targetElement instanceof HTMLElement && targetElement.closest('.history-panel, ui-history')) {
-            return;
-        }
-        // Normalize the input to always be an array of components
+        // If the desired state is empty or undefined, remove all existing children.
         if (!components) {
-            // If the desired state is empty, remove all existing children
             for (const child of Array.from(targetElement.children)) {
                 await removeElementGracefully(child);
             }
             return;
         }
-        const desired: Component[] = Array.isArray(components) ? components : [components];
+        const desiredComponents: Component[] = Array.isArray(components) ? components : [components];
 
-        // Create a stable copy of the existing DOM elements
-        const existingEls = Array.from(targetElement.children) as HTMLElement[];
+        const existingElements = Array.from(targetElement.children) as HTMLElement[];
 
         // Build a map of existing elements that have a 'componentKey' for quick lookups
         const keyedMap = new Map<string, HTMLElement>();
-        existingEls.forEach(el => {
-            const key = readElementKey(el);
+        existingElements.forEach(element => {
+            const key = readElementKey(element);
             if (key) {
-                keyedMap.set(key, el);
+                keyedMap.set(key, element);
             }
         });
 
-        // A set to keep track of elements that are kept, so we can remove the rest
+        // A set to keep track of elements that are kept or reused, so unconsumed ones can be removed later
         const consumed = new Set<Element>();
 
-        // --- Main Reconciliation Loop ---
         // Iterate through the desired components and place them in the correct order
-        for (let i = 0; i < desired.length; i++) {
-            const comp = desired[i];
-            const compKey = comp.key ?? null;
-            let reuseEl: HTMLElement | undefined;
+        for (let i = 0; i < desiredComponents.length; i++) {
+            const desiredComponent = desiredComponents[i];
 
             // 1. Find a DOM element to reuse
-            if (compKey) {
-                // If the desired component has a key, try to find a match in our map
-                reuseEl = keyedMap.get(compKey);
-            } else {
-                // For un-keyed components, attempt to reuse the element at the same index
-                const candidate = existingEls[i];
-                // Only reuse if the candidate is also un-keyed and has the same component type
-                if (candidate && !readElementKey(candidate) && readElementType(candidate) === comp.component) {
-                    reuseEl = candidate;
-                }
-            }
-
-            // If we found a potential element to reuse, we must verify its type hasn't changed
-            if (reuseEl && readElementType(reuseEl) !== comp.component) {
-                reuseEl = undefined; // Do not reuse if component type is different
-            }
-
-            let elToPlace: HTMLElement | null;
+            const existingElementToReuse = this._findReusableElement(
+                desiredComponent,
+                i,
+                existingElements,
+                keyedMap
+            );
 
             // 2. Create or Update the element
-            if (reuseEl) {
-                // If we are reusing an element, mark it as consumed
-                consumed.add(reuseEl);
-                elToPlace = reuseEl;
-                // Update its data, which will trigger its 'attributeChangedCallback'
-                elToPlace.setAttribute('data', JSON.stringify(comp));
-                // Trigger a highlight animation to give visual feedback on the update
-                queueMicrotask(() => this.animateUpdate(elToPlace as HTMLElement));
-            } else {
-                // If no element could be reused, create a new one
-                elToPlace = await this.createComponentElement(comp);
-            }
+            const finalElementToPlace = await this._createOrUpdateElement(
+                desiredComponent,
+                existingElementToReuse,
+                consumed
+            );
 
-            if (!elToPlace) {
+            if (!finalElementToPlace) {
                 continue; // Skip if element creation failed
             }
 
             // 3. Place the element in the correct DOM position
-            const currentElAtIndex = targetElement.children[i] as HTMLElement | undefined;
-            if (currentElAtIndex !== elToPlace) {
-                // If the element is not already in the correct spot, insert it.
-                // 'insertBefore' with a null reference node will append it to the end.
-                targetElement.insertBefore(elToPlace, currentElAtIndex ?? null);
-            }
+            this._placeElement(targetElement, finalElementToPlace, i);
         }
 
-        // --- Cleanup Phase ---
         // Remove any old elements that were not part of the 'consumed' set
-        for (const el of existingEls) {
-            if (!consumed.has(el)) {
+        for (const element of existingElements) {
+            if (!consumed.has(element)) {
                 // Use the graceful removal function to allow for exit animations
-                await removeElementGracefully(el);
+                await removeElementGracefully(element);
             }
         }
     }
 
     /**
-     * Applies a patch to a root element.
-     * @param rootElement The root element to apply the patch to.
-     * @param patch The patch to apply.
-     * @returns A Promise that resolves when the patch is applied.
+     * Applies a structural patch to a root element, allowing for dynamic additions, updates, or removals
+     * of UI components. This method directly manipulates the DOM based on the specified patch operation.
+     *
+     * @param rootElement The root HTMLElement or ShadowRoot to which the patch should be applied.
+     * @param patch The `Patch` object describing the operation (add, update, remove), target, and value.
+     * @returns A Promise that resolves to `void` when the patch has been applied.
      */
     public async applyPatch(rootElement: HTMLElement | ShadowRoot, patch: Patch): Promise<void> {
-        // existing implementation unchanged
         switch (patch.op) {
             case 'add': {
                 const newElement = await this.createComponentElement(patch.value);
@@ -239,15 +333,17 @@ export class Interpreter {
 
                 let parentElement: Element | HTMLElement | ShadowRoot = rootElement;
                 if (patch.path) {
-                    const parent = this.findElementById(rootElement, patch.path);
-                    if (parent && parent.shadowRoot) {
-                        parentElement = parent.shadowRoot.querySelector('.card-content') || parent.shadowRoot;
-                    } else if (parent) {
-                        parentElement = parent;
+                    const foundParent = this.findElementById(rootElement, patch.path);
+                    if (foundParent) {
+                        parentElement = foundParent.shadowRoot?.querySelector('.card-content') || foundParent.shadowRoot || foundParent;
                     }
                 }
 
-                parentElement.appendChild(newElement);
+                if (parentElement instanceof Element || parentElement instanceof HTMLElement || parentElement instanceof ShadowRoot) {
+                    parentElement.appendChild(newElement);
+                } else {
+                    console.warn(`Could not determine valid parent element for 'add' operation at path '${patch.path}'.`);
+                }
                 break;
             }
 
@@ -282,9 +378,15 @@ export class Interpreter {
     }
 
     /**
-     * Handle a transport Envelope and delegate to the proper interpreter operation.
-     * @param rootElement Root to operate on.
-     * @param envelope Transport envelope.
+     * Handles a transport `Envelope` received from an external source (e.g., a backend service).
+     * This method dispatches the envelope's payload to the appropriate interpreter operation
+     * (e.g., `applyPatch` for 'patch' types, `render` for 'message' types).
+     *
+     * Errors during envelope processing are caught and logged, preventing application crashes.
+     *
+     * @param rootElement The HTMLElement or ShadowRoot on which the envelope operations should be performed.
+     * @param envelope The `Envelope` object containing the type of operation and its payload.
+     * @returns A Promise that resolves to `void` once the envelope has been processed.
      */
     public async handleEnvelope(rootElement: HTMLElement | ShadowRoot, envelope: Envelope): Promise<void> {
         if (!envelope) return;
@@ -299,7 +401,6 @@ export class Interpreter {
 
                 case 'message':
                     // Treat message payload as renderable components or children
-                    // If payload is undefined or unrecognized, do nothing
                     if (envelope.payload) {
                         await this.render(rootElement as any, envelope.payload);
                     }
@@ -310,7 +411,7 @@ export class Interpreter {
                     if (envelope.payload?.patch) {
                         await this.applyPatch(rootElement, envelope.payload.patch);
                     }
-                    // Additional control actions can be implemented here
+                    // Additional control actions can be implemented here based on `envelope.payload.action` or other fields
                     break;
 
                 default:

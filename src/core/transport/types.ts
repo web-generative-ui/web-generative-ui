@@ -42,7 +42,7 @@ export interface WebSocketTransportOptions extends TransportOptionsBase {
 export type TransportOptions = SSETransportOptions | WebSocketTransportOptions;
 
 export interface Transport {
-    error?: string;
+    lastError?: string;
     isConnected: boolean;
     options: TransportOptions;
 

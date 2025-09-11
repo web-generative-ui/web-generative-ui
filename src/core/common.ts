@@ -1,57 +1,87 @@
 import type {Children} from "../schema.ts";
+import type {LayoutMeta} from "../schema.ts";
 
-export function normalizeChildrenField(comp: any): Children | undefined {
-    // comp may have children, content, items, children?.items, etc.
-    if (!comp) return undefined;
-    if (Array.isArray(comp.children)) return comp.children as Children;
-    if (Array.isArray(comp.children?.items)) return comp.children.items as Children;
-    if (Array.isArray(comp.items)) return comp.items as Children;
-    if (Array.isArray(comp.content)) return comp.content as Children;
-    // nothing to normalize
+/**
+ * Normalizes and extracts an array of child components from various potential fields
+ * within a component's schema object. It checks for children in a specific order:
+ * `componentSchema.children` (if an array), `componentSchema.children.items` (if an array),
+ * `componentSchema.items` (if an array), and finally `componentSchema.content` (if an array).
+ * This handles common variations in how child components might be structured in the schema.
+ *
+ * @param componentSchema The component schema object to inspect for child components.
+ * @returns An array of `Children` (components) if found in any of the expected fields, otherwise `undefined`.
+ */
+export function normalizeChildrenField(componentSchema: any): Children | undefined {
+    if (!componentSchema) return undefined;
+    if (Array.isArray(componentSchema.children)) return componentSchema.children as Children;
+    if (Array.isArray(componentSchema.children?.items)) return componentSchema.children.items as Children;
+    if (Array.isArray(componentSchema.items)) return componentSchema.items as Children;
+    if (Array.isArray(componentSchema.content)) return componentSchema.content as Children;
+
     return undefined;
 }
 
-import type { LayoutMeta } from "../schema.ts";
-
 /**
- * Apply layout metadata to a container element (usually a wrapper around a child).
- * Works for flex/grid containers.
+ * Applies layout-related CSS properties to a given HTML element based on provided `LayoutMeta`.
+ * This function supports common flexbox and grid properties, enabling dynamic control
+ * over element positioning and sizing within its parent container.
+ *
+ * Special handling for `span`:
+ * - If `span` is a number, it's interpreted as `flex-grow` in a flex context.
+ * - If `span` is a string (e.g., a CSS grid-column value), it's applied as `flex-basis`,
+ *   allowing the parent container (grid or flex) to interpret it accordingly.
+ *
+ * @param element The HTMLElement to which layout metadata should be applied.
+ * @param layout The `LayoutMeta` object containing CSS-like layout properties.
+ * @returns `void`
  */
-export function applyLayoutMeta(el: HTMLElement, layout?: LayoutMeta): void {
+export function applyLayoutMeta(element: HTMLElement, layout?: LayoutMeta): void {
     if (!layout) return;
 
-    const { span, order, align, grow, basis, area } = layout;
+    const {span, order, align, grow, basis, area} = layout;
 
     if (order !== undefined) {
-        el.style.order = String(order);
+        element.style.order = String(order);
     }
     if (align) {
-        el.style.alignSelf = align;
+        element.style.alignSelf = align;
     }
     if (grow !== undefined) {
-        el.style.flexGrow = String(grow);
+        element.style.flexGrow = String(grow);
     }
     if (basis) {
-        el.style.flexBasis = basis;
+        element.style.flexBasis = basis;
     }
     if (span !== undefined) {
         if (typeof span === "number") {
             // In flex context, interpret numeric span as flex-grow
-            el.style.flex = `${span} 1 0`;
+            element.style.flex = `${span} 1 0`;
         } else {
             // CSS string, let the container decide (grid-column, width, etc.)
-            el.style.flexBasis = span;
+            element.style.flexBasis = span;
         }
     }
     if (area) {
-        el.style.gridArea = area;
+        element.style.gridArea = area;
     }
 }
 
-export function escapeHtml(s: string): string {
-    return s.replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+/**
+ * Escapes HTML special characters in a string to prevent Cross-Site Scripting (XSS) vulnerabilities
+ * when rendering user-provided or untrusted text content directly into HTML.
+ * It replaces '&', '<', '>', '"', and "'" with their corresponding HTML entities.
+ *
+ * @param rawString The string containing potentially unsafe HTML characters.
+ * @returns The HTML-escaped string.
+ */
+export function escapeHtml(rawString: string): string {
+    const replacements: { [key: string]: string } = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+
+    return rawString.replace(/[&<>"']/g, char => replacements[char]);
 }

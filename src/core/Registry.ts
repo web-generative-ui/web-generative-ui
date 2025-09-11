@@ -1,5 +1,5 @@
-import { Interpreter } from './Interpreter';
-import { componentTagMap } from './ComponentMapping.ts';
+import {Interpreter} from './Interpreter';
+import {componentTagMap} from './ComponentMapping.ts';
 import type {Children, Component, ElementModule} from '../schema.ts';
 import {normalizeChildrenField} from "./common.ts";
 
@@ -9,48 +9,69 @@ import {normalizeChildrenField} from "./common.ts";
  * This is the central component for managing and rendering dynamic UI payloads.
  */
 export class Registry {
+    /**
+     * A set to track the names of components that have been successfully loaded and defined as custom elements.
+     * @private
+     */
     private loadedComponents = new Set<string>();
     private interpreter!: Interpreter
 
-    // A map from a schema component name to a function that dynamically imports its module
-    private componentLoaders: { [schemaName: string]: () => Promise<ElementModule> } = {
-        'card': () => import('../components/UiCard').then(mod => ({ default: mod.UiCard })),
-        'text': () => import('../components/UiText').then(mod => ({ default: mod.UiText })),
-        'loading': () => import('../components/UiLoading').then(mod => ({ default: mod.UiLoading })),
-        'box': () => import('../components/UiBox').then(mod => ({ default: mod.UiBox })),
-        'button': () => import('../components/UiButton').then(mod => ({ default: mod.UiButton })),
-        'image': () => import('../components/UiImage').then(mod => ({ default: mod.UiImage })),
-        'grid': () => import('../components/UiGrid').then(mod => ({ default: mod.UiGrid })),
-        'spacer': () => import('../components/UiSpacer').then(mod => ({ default: mod.UiSpacer })),
-        'divider': () => import('../components/UiDivider').then(mod => ({ default: mod.UiDivider })),
-        'progress': () => import('../components/UiProgress').then(mod => ({ default: mod.UiProgress })),
-        'badge': () => import('../components/UiBadge').then(mod => ({ default: mod.UiBadge })),
-        'icon': () => import('../components/UiIcon').then(mod => ({ default: mod.UiIcon })),
-        'link': () => import('../components/UiLink').then(mod => ({ default: mod.UiLink })),
-        'video': () => import('../components/UiVideo').then(mod => ({ default: mod.UiVideo })),
-        'tabs': () => import('../components/UiTabs').then(mod => ({ default: mod.UiTabs })),
-        'collapse-block': () => import('../components/UiCollapseBlock').then(mod => ({ default: mod.UiCollapseBlock })),
-        'carousel': () => import('../components/UiCarousel').then(mod => ({ default: mod.UiCarousel })),
-        'reference': () => import('../components/UiReference').then(mod => ({ default: mod.UiReference })),
-        'timeline': () => import('../components/UiTimeline').then(mod => ({ default: mod.UiTimeline })),
-        'stream': () => import('../components/UiStream').then(mod => ({ default: mod.UiStream })),
-        'table': () => import('../components/UiTable').then(mod => ({ default: mod.UiTable })),
-        'error': () => import('../components/UiError').then(mod => ({ default: mod.UiError })),
-        'history': () => import('../components/UiHistoryList.ts').then(mod => ({ default: mod.UiHistoryList })),
+    /**
+     * A map that associates schema component names with functions that dynamically import their respective modules.
+     * The keys are schema component names (e.g., 'card', 'text'), and the values are asynchronous functions
+     * that resolve to an object containing the default export of the component module.
+     * @private
+     */
+    private componentImportMap: { [schemaName: string]: () => Promise<ElementModule> } = {
+        'card': () => import('../components/UiCard').then(mod => ({default: mod.UiCard})),
+        'text': () => import('../components/UiText').then(mod => ({default: mod.UiText})),
+        'loading': () => import('../components/UiLoading').then(mod => ({default: mod.UiLoading})),
+        'box': () => import('../components/UiBox').then(mod => ({default: mod.UiBox})),
+        'button': () => import('../components/UiButton').then(mod => ({default: mod.UiButton})),
+        'image': () => import('../components/UiImage').then(mod => ({default: mod.UiImage})),
+        'grid': () => import('../components/UiGrid').then(mod => ({default: mod.UiGrid})),
+        'spacer': () => import('../components/UiSpacer').then(mod => ({default: mod.UiSpacer})),
+        'divider': () => import('../components/UiDivider').then(mod => ({default: mod.UiDivider})),
+        'progress': () => import('../components/UiProgress').then(mod => ({default: mod.UiProgress})),
+        'badge': () => import('../components/UiBadge').then(mod => ({default: mod.UiBadge})),
+        'icon': () => import('../components/UiIcon').then(mod => ({default: mod.UiIcon})),
+        'link': () => import('../components/UiLink').then(mod => ({default: mod.UiLink})),
+        'video': () => import('../components/UiVideo').then(mod => ({default: mod.UiVideo})),
+        'tabs': () => import('../components/UiTabs').then(mod => ({default: mod.UiTabs})),
+        'collapse-block': () => import('../components/UiCollapseBlock').then(mod => ({default: mod.UiCollapseBlock})),
+        'carousel': () => import('../components/UiCarousel').then(mod => ({default: mod.UiCarousel})),
+        'reference': () => import('../components/UiReference').then(mod => ({default: mod.UiReference})),
+        'timeline': () => import('../components/UiTimeline').then(mod => ({default: mod.UiTimeline})),
+        'stream': () => import('../components/UiStream').then(mod => ({default: mod.UiStream})),
+        'table': () => import('../components/UiTable').then(mod => ({default: mod.UiTable})),
+        'error': () => import('../components/UiError').then(mod => ({default: mod.UiError})),
     };
 
-    constructor() {}
+    constructor() {
+    }
 
     /**
-     * Set the interpreter instance.
-     * @param interpreter The Interpreter instance.
+     * Sets the component import map for the Registry.  This is a map that associates schema component names
+     * with functions that dynamically import their respective modules.  The keys are schema component names
+     * (e.g., 'card', 'text'), and the values are asynchronous functions that resolve to an object containing
+     * the default export of the component module.
+     * @param componentImportMap
+     */
+    public setComponentImportMap(componentImportMap: { [schemaName: string]: () => Promise<ElementModule> }): void {
+        this.componentImportMap = componentImportMap;
+    }
+
+    /**
+     * Sets the Interpreter instance for use within the Registry.  This allows the Registry
+     * to interact with the interpreter, likely for things like data binding and event handling.
+     * @param interpreter The Interpreter instance to set.
      */
     public setInterpreter(interpreter: Interpreter): void {
         this.interpreter = interpreter;
     }
 
     /**
-     * Get the interpreter instance.
+     * Retrieves the currently assigned Interpreter instance.
      * @returns The Interpreter instance.
      */
     public getInterpreter(): Interpreter {
@@ -58,52 +79,61 @@ export class Registry {
     }
 
     /**
-     * Ensures a component is loaded and defined.
-     * @param schemaName The 'component' string from the schema (e.g., 'card', 'text').
-     * @returns A promise that resolves when the component is defined.
+     * Ensures that a UI component, specified by its schema name, is loaded and defined as a custom element in the browser.
+     * It checks if the component is already defined or loaded. If not, it dynamically imports the component's module,
+     * defines it as a custom element, and adds the component's tag name to the list of loaded components.
+     * @param componentName The name of the component as specified in the schema (e.g., 'card', 'text').
+     * @returns A promise that resolves when the component is defined, or rejects if an error occurs during loading or definition.
      */
-    public async ensureComponentDefined(schemaName: string): Promise<void> {
-        const tagName = componentTagMap[schemaName];
+    public async ensureComponentDefined(componentName: string): Promise<void> {
+        const customElementName = componentTagMap[componentName];
 
-        if (!tagName) {
-            console.error(`Error: No tag mapping for schema component '${schemaName}'.`);
+        if (!customElementName) {
+            console.error(`Error: No tag mapping for schema component '${componentName}'.`);
             return;
         }
 
-        if (customElements.get(tagName) || this.loadedComponents.has(tagName)) {
+        if (customElements.get(customElementName) || this.loadedComponents.has(customElementName)) {
             return;
         }
 
-        const loader = this.componentLoaders[schemaName];
+        const loader = this.componentImportMap[componentName];
         if (!loader) {
-            console.error(`Error: No dynamic loader found for schema component '${schemaName}'.`);
+            console.error(`Error: No dynamic loader found for schema component '${componentName}'.`);
             return;
         }
 
         try {
-            console.log(`Loading and defining component: ${schemaName} (${tagName})`);
-            const module = await loader();
-            const ComponentClass = module.default;
+            console.log(`Loading and defining component: ${componentName} (${customElementName})`);
+            const componentModule = await loader();
+            const ComponentClass = componentModule.default;
 
-            if (ComponentClass && customElements.get(tagName) === undefined) {
+            if (ComponentClass && customElements.get(customElementName) === undefined) {
                 if (typeof ComponentClass === 'function' && ComponentClass.prototype instanceof HTMLElement) {
-                    customElements.define(tagName, ComponentClass);
-                    this.loadedComponents.add(tagName);
+                    customElements.define(customElementName, ComponentClass);
+                    this.loadedComponents.add(customElementName);
                 } else {
-                    console.error(`Error: Loaded module for '${schemaName}' does not export a valid HTMLElement subclass.`);
+                    console.error(`Error: Loaded module for '${componentName}' does not export a valid HTMLElement subclass.`);
                 }
             }
         } catch (error) {
-            console.error(`Failed to load or define component '${schemaName}':`, error);
+            console.error(`Failed to load or define component '${componentName}':`, error);
         }
     }
 
     /**
-     * Preloads and defines all components (optional, for specific use cases).
+     * Preloads and defines all known UI components.  This is an optional utility function
+     * that can be used to pre-emptively load all components defined in `componentImportMap`.  This can
+     * be useful to avoid loading delays at runtime, especially for applications that know
+     * all available components ahead of time.
+     *
+     * Note: This should be used judiciously as it can increase initial load times.
+     *
+     * @returns A promise that resolves when all components have been preloaded.
      */
     public async preloadAllComponents(): Promise<void> {
         console.log("Preloading all known components...");
-        const promises = Object.keys(this.componentLoaders).map(schemaName =>
+        const promises = Object.keys(this.componentImportMap).map(schemaName =>
             this.ensureComponentDefined(schemaName)
         );
         await Promise.all(promises);
@@ -111,25 +141,29 @@ export class Registry {
     }
 
     /**
-     * Ensures all components required by a given UI payload are loaded and defined.
-     * This is the entry point for dynamic loading based on an LLM response.
-     * @param payload A single Component or an array of Components.
+     * Ensures that all components required by a given UI payload (a single component or an array of components)
+     * are loaded and defined as custom elements in the browser.  This method recursively traverses
+     * the component structure to identify and load all dependent components. It is the
+     * primary entry point for the dynamic loading of components based on a UI schema, typically generated by an LLM.
+     *
+     * @param payload The UI payload, which can be a single Component object or an array of Component objects (Children).
+     * @throws {Error} If the component structure exceeds the maximum depth to avoid infinite loops.
      */
     public async ensurePayloadComponentsDefined(payload: Component | Children): Promise<void> {
-        const MAX_DEPTH = 10; // Adjust based on your needs
-        const componentsToCheck = Array.isArray(payload) ? payload : [payload];
+        const MAX_COMPONENT_DEPTH = 10; // Adjust based on your needs
+        const initialComponents = Array.isArray(payload) ? payload : [payload];
         const schemaNamesToLoad = new Set<string>();
         const stack: { comp: Component; depth: number }[] = [];
 
-        // Initialize stack with top-level components
-        for (const comp of componentsToCheck) {
+        // Initialize the stack with top-level components
+        for (const comp of initialComponents) {
             if (comp) {
-                stack.push({ comp, depth: 0 });
+                stack.push({comp, depth: 0});
             }
         }
 
         while (stack.length > 0) {
-            const { comp, depth } = stack.pop()!;
+            const {comp, depth} = stack.pop()!;
 
             // Add current component's schema name
             if (comp && comp.component) {
@@ -137,78 +171,61 @@ export class Registry {
             }
 
             // Skip processing children if max depth reached
-            if (depth >= MAX_DEPTH) {
+            if (depth >= MAX_COMPONENT_DEPTH) {
                 continue;
             }
 
             // Helper to push child components to stack
-            const pushChildren = (children: Component[] | undefined) => {
+            const enqueueChildren = (children: Component[] | undefined) => {
                 if (children && children.length > 0) {
                     for (const child of children) {
                         if (child) {
-                            stack.push({ comp: child, depth: depth + 1 });
+                            stack.push({comp: child, depth: depth + 1});
                         }
                     }
                 }
             };
 
             // Check all possible child component sources
-            const childrenArr = normalizeChildrenField(comp as any);
-            if (Array.isArray(childrenArr)) {
-                pushChildren(childrenArr);
+            const normalizedChildren = normalizeChildrenField(comp as any);
+            if (Array.isArray(normalizedChildren)) {
+                enqueueChildren(normalizedChildren);
             }
 
-            // Tabs
+            const enqueueChildrenFrom = (source: any) => {
+                if (Array.isArray(source)) {
+                    enqueueChildren(source);
+                }
+            };
+
             if ('tabs' in comp && Array.isArray((comp as any).tabs)) {
-                for (const tab of (comp as any).tabs) {
-                    if (Array.isArray(tab.content) && tab.content.length > 0) {
-                        pushChildren(tab.content);
-                    }
-                }
+                (comp as any).tabs.forEach((tab: any) => enqueueChildrenFrom(tab.content));
             }
 
-            // Stream items
             if ('items' in comp && Array.isArray((comp as any).items)) {
-                for (const item of (comp as any).items) {
+                (comp as any).items.forEach((item: any) => {
                     if (item && typeof item.component === 'string') {
-                        pushChildren([item]);
+                        enqueueChildren([item]);
                     }
-
-                    const itemContent = (item as any).content;
-                    if (itemContent && typeof itemContent === 'object') {
-                        if (Array.isArray(itemContent)) {
-                            pushChildren(itemContent);
-                        } else if (typeof (itemContent as any).component === 'string') {
-                            pushChildren([itemContent as Component]);
-                        }
-                    }
-                }
+                    enqueueChildrenFrom((item as any).content);
+                });
             }
 
-            // Content array
-            if ('content' in comp && Array.isArray((comp as any).content)) {
-                pushChildren((comp as any).content);
-            }
+            enqueueChildrenFrom((comp as any).content);
 
-            // Carousel
+
             if (('carousel' in comp) || comp.component === 'carousel') {
-                const items = (comp as any).items;
-                if (Array.isArray(items)) {
-                    pushChildren(items);
-                }
+                enqueueChildrenFrom((comp as any).items);
             }
 
-            // Grid children
-            if (comp && (comp as any).children && Array.isArray((comp as any).children)) {
-                pushChildren((comp as any).children);
+            if (comp && (comp as any).children) {
+                enqueueChildrenFrom((comp as any).children);
             }
 
             // Legacy table children
             if ('children' in comp) {
                 const maybe = (comp as any).children;
-                if (maybe && Array.isArray(maybe.items)) {
-                    pushChildren(maybe.items);
-                }
+                enqueueChildrenFrom(maybe?.items);
             }
         }
 
