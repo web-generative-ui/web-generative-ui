@@ -12,7 +12,6 @@ Phase 4 — ActionDispatcher & callbacks
 Implement ActionDispatcher with default DOM event hooking.
 
 Phase 5 — Persistence, UI history components, and tooling
-Provide optional history UI components (e.g., UiHistoryList) that read from ConversationStore.
 Add tests, examples, and docs.
 
 Phase 6 — Advanced features
