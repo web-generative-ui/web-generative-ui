@@ -16,28 +16,6 @@ export type GenerativeUIConfig = {
     onOpen?: (conn: EventSource | Transport) => void;
     /** Hook when server signals close or error ends the stream */
     onClose?: () => void;
-
-    historyContext?: {
-        enabled: boolean;
-        position?: 'left' | 'right' | 'top' | 'bottom';
-        width?: string;
-        height?: string;
-        limit?: number;
-        title?: string;
-
-        // New chunk-related properties
-        chunkable?: boolean;          // Enable chunk-based organization
-        defaultCollapsed?: boolean;   // Default chunk state
-        chunkSize?: number;           // Messages per chunk (default: 1)
-        style?: {
-            backgroundColor?: string;
-            borderColor?: string;
-            accentColor?: string;
-        };
-
-        collapsible?: boolean;        // Keep for backward compatibility
-        autoUpdate?: boolean;
-    };
 };
 
 export type PatchOperation = 'add' | 'update' | 'remove';
