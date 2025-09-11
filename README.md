@@ -26,9 +26,7 @@ Generative UI empowers you to create adaptive, intelligent, and engaging user ex
 - **Cross-Platform Compatibility**: Using native Web Components -> works with modern frontend frameworks like React, Vue, and Angular.
 
 ## Next Goals
-- [ ] Implement Styling & Theming (Design System Integration).
 - [ ] Refine Component styling & theming to match the design system.
-- [ ] Implement dedicated transition for each component.
 - [ ] Introduce more flexible layout mechanism
 - [ ] Implement more components.
 - [ ] Accessibility.
@@ -54,10 +52,10 @@ const ui = await GenerativeUI.init({
     },
 })
 
-const convId = await ui.createConversation();
+const conversationId = await ui.createConversation();
 const trigger = document.getElementById('trigger');
 trigger?.addEventListener('click', async () => {
-    await ui.sendMessage(convId, 'Hello there!');
+    await ui.sendMessage(conversationId, 'Hello there!');
 });
 ```
 
@@ -75,10 +73,10 @@ const ui = await GenerativeUI.init({
 
 await ui.connect();
 
-const convId = await ui.createConversation();
+const conversationId = await ui.createConversation();
 const trigger = document.getElementById('trigger');
 trigger?.addEventListener('click', async () => {
-    await ui.sendMessage(convId, 'Hello there!');
+    await ui.sendMessage(conversationId, 'Hello there!');
 });
 
 window.addEventListener('beforeunload', () => {
