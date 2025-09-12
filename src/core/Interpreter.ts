@@ -34,18 +34,17 @@ function readElementType(element: Element | null): string | undefined {
  * @returns A promise that resolves once the element has been removed or its `willExit` method completes.
  */
 async function removeElementGracefully(element: Element) {
-    // if the element is a custom element instance with willExit, call it
     const componentInstance = element as unknown as { willExit?: () => Promise<void> };
+
     if (typeof componentInstance.willExit === 'function') {
         try {
             await componentInstance.willExit();
         } catch {
-            // Swallow error; proceed to remove the element regardless
+            // swallow; proceed to remove regardless of willExit's success
         }
     }
-    if (element.parentElement) element.parentElement.removeChild(element);
+    element.parentElement?.removeChild(element);
 }
-
 /**
  * The Interpreter class is responsible for dynamically rendering UI components,
  * applying updates via patches, and reconciling the DOM based on a declarative schema.
@@ -105,9 +104,14 @@ export class Interpreter {
      * @returns A Promise that resolves to the newly created custom HTMLElement, or `null` if the component's tag mapping is missing or creation fails.
      * @private
      */
-    private async createComponentElement(desiredComponent: Component): Promise<HTMLElement | null> {
+    private async createComponentElement(desiredComponent: Component | undefined): Promise<HTMLElement | null> {
+        if (!desiredComponent || !desiredComponent.component) {
+            console.error('Error: Cannot create element because the component data is missing or invalid.');
+            return null;
+        }
+
         await this.registry.ensureComponentDefined(desiredComponent.component);
-        // await this.registry.ensurePayloadComponentsDefined(desiredComponent)
+        await this.registry.ensurePayloadComponentsDefined(desiredComponent)
 
         const tagName = componentTagMap[desiredComponent.component as string];
         if (!tagName) {
@@ -120,7 +124,6 @@ export class Interpreter {
             newCustomElement.id = desiredComponent.id;
         }
 
-        // Set data attribute to pass component properties, triggering 'attributeChangedCallback' in custom elements
         newCustomElement.setAttribute('data', JSON.stringify(desiredComponent));
         return newCustomElement;
     }

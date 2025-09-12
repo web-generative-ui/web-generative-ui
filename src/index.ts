@@ -1,28 +1,34 @@
 import {Registry} from './core/Registry';
 import {Interpreter} from './core/Interpreter';
 import {BaseUiComponent} from './components/BaseUiComponent';
-import type {GenerativeUIConfig} from "./schema.ts";
-import type {Transport, TransportOptions} from "./core/transport/types.ts";
+import type {GenerativeUIConfig, Patch, Component, Children} from "./schema.ts";
+import type {Transport, TransportOptions, Envelope, TransportEvent} from "./core/transport/types.ts";
 import {SSETransport} from "./core/transport/SSETransport.ts";
 import {WebSocketTransport} from "./core/transport/WebSocketTransport.ts";
 import {ConversationStore} from "./core/conversation/ConversationStore.ts";
 import {LocalStoragePersistence} from "./core/conversation/LocalStoragePersistence.ts";
 import {ConversationManager} from "./core/conversation/ConversationManager.ts";
 
+/**
+ * Represents a high-level instance of the Generative UI library, providing a user-friendly API
+ * to interact with the underlying components (Registry, Interpreter, Transport, ConversationStore, ConversationManager).
+ */
 type GenerativeUIInstance = {
     createConversation: (id?: string) => Promise<string>;
-    sendMessage: (convId: string, message: string) => Promise<void>;
+    sendMessage: (convId: string, message: string | { text?: string; [k: string]: any }) => Promise<void>;
     connect: () => Promise<void>;
-    onMessage: (cb: (envelope: any) => void) => void;
-    onPatch: (cb: (patch: any) => void) => void;
-    onControl: (cb: (control: any) => void) => void;
-    onEvent: (cb: (ev: any) => void) => void;
+
+    onMessage: (handler: (envelope: Envelope) => void) => void;
+    onPatch: (handler: (patch: Patch) => void) => void;
+    onControl: (handler: (control: any) => void) => void;
+    onEvent: (handler: (event: TransportEvent) => void) => void;
     disconnect: () => void;
-    getConversationHistory: (convId: string) => Promise<any[]>;
-    getRecentMessages: (convId: string, limit?: number) => Promise<any[]>;
-    getMessagesFrom: (convId: string, fromTurnId: string) => Promise<any[]>;
-    extractMessageContent: (messages: any[]) => any[];
-    getLastUserContext: (convId: string) => Promise<any>;
+
+    getConversationHistory: (convId: string) => Promise<Envelope[]>;
+    getRecentMessages: (convId: string, limit?: number) => Promise<Envelope[]>;
+    getMessagesFrom: (convId: string, fromTurnId: string) => Promise<Envelope[]>;
+    extractMessageContent: (messages: Envelope[]) => (string | Component | Children | undefined)[];
+    getLastUserContext: (convId: string) => Promise<string | Component | Children | undefined>;
 
     conversationManager: ConversationManager;
     registry: Registry;
@@ -32,19 +38,27 @@ type GenerativeUIInstance = {
 
 const GenerativeUI = {
     /**
-     * Low-level factory for advanced embedding use cases.
+     * Low-level factory function to create and configure a `Registry` instance.
+     * This is useful for advanced embedding scenarios where more control over
+     * component registration and interpretation is required.
+     * @returns A configured `Registry` instance.
      */
     createRegistry(): Registry {
         const registry = new Registry();
         const interpreter = new Interpreter(registry);
         registry.setInterpreter(interpreter);
+        // BaseUiComponent relies on a globally set registry for dynamic loading.
         BaseUiComponent.setRegistry(registry);
 
         return registry;
     },
 
     /**
-     * Transport factory.
+     * Factory function to create a `Transport` instance based on provided options.
+     * Supports 'sse' for Server-Sent Events and 'websocket' for WebSockets.
+     * @param options Configuration options specific to the transport type.
+     * @returns A `Transport` instance.
+     * @throws {Error} If an unsupported transport type is specified.
      */
     createTransport(options: TransportOptions): Transport {
         switch (options.type) {
@@ -53,44 +67,57 @@ const GenerativeUI = {
             case 'websocket':
                 return new WebSocketTransport(options as any);
             default:
-                throw new Error(`Unsupported transport type`);
+                throw new Error(`Unsupported transport type: ${(options as any).type}`);
         }
     },
 
     /**
-     * High-level bootstrap: creates a UI instance bound to one transport/server.
+     * High-level bootstrap function that initializes the entire Generative UI stack.
+     * It sets up the Registry, Interpreter, optional Transport, ConversationStore,
+     * and ConversationManager, returning a facade (`GenerativeUIInstance`) for interaction.
+     * @param config Configuration object for the Generative UI instance.
+     * @returns A Promise that resolves with a `GenerativeUIInstance` ready for use.
+     * @throws {Error} If the specified container element is not found.
      */
-    async init(opts: GenerativeUIConfig): Promise<GenerativeUIInstance> {
+    async init(config: GenerativeUIConfig): Promise<GenerativeUIInstance> {
         const registry = this.createRegistry();
         const interpreter = registry.getInterpreter();
 
-        const rootEl =
-            typeof opts.container === 'string'
-                ? document.querySelector(opts.container)
-                : opts.container;
+        const rootElement =
+            typeof config.container === 'string'
+                ? document.querySelector(config.container)
+                : config.container;
 
-        if (!rootEl) throw new Error('GenerativeUI.start: container not found');
-        if (opts.clearContainer !== false) (rootEl as HTMLElement).innerHTML = '';
+        if (!rootElement) {
+            throw new Error(`GenerativeUI.init: UI container element '${config.container}' not found.`);
+        }
+        // Clear the container's content by default, unless explicitly set to false
+        if (config.clearContainer !== false) {
+            (rootElement as HTMLElement).innerHTML = '';
+        }
 
-        const provided = opts.transport as Transport | TransportOptions | undefined;
+        const providedTransportConfig = config.transport;
+        // Type guard to distinguish between TransportOptions and an already instantiated Transport object
         const isTransportOptions = (v: any): v is TransportOptions =>
             v && typeof v === 'object' && typeof v.type === 'string';
 
         let transport: Transport | undefined;
-        if (provided) {
-            transport = isTransportOptions(provided)
-                ? this.createTransport(provided)
-                : (provided as Transport);
+        if (providedTransportConfig) {
+            transport = isTransportOptions(providedTransportConfig)
+                ? this.createTransport(providedTransportConfig)
+                : (providedTransportConfig as Transport);
         }
 
+        // Initialize ConversationStore with LocalStoragePersistence if enabled in config
         const store = new ConversationStore(
-            (opts as any).enableLocalPersistence ? new LocalStoragePersistence() : undefined
+            config.enableLocalPersistence ? new LocalStoragePersistence() : undefined
         );
-
+        // BaseUiComponent needs access to the conversation store for some features (e.g., history lookup, actions)
         BaseUiComponent.setConversationStore(store);
 
+        // Ensure renderTarget is explicitly HTMLElement or ShadowRoot for type safety
+        const renderTarget: HTMLElement | ShadowRoot = rootElement as HTMLElement | ShadowRoot;
 
-        let renderTarget = rootEl as HTMLElement;
         const conversationManager = new ConversationManager(
             interpreter,
             renderTarget,
@@ -99,19 +126,18 @@ const GenerativeUI = {
         );
 
         return {
-            // advanced access (optional)
+            // Advanced access for debugging or highly custom integrations
             registry,
             interpreter,
             transport,
             conversationManager,
 
-            // high-level APIs (user-friendly)
+            // High-level, user-friendly APIs
             createConversation: (id?: string) => conversationManager.startConversation(id),
 
-            // normalize string => { text } and forward to the internal API
-            sendMessage: (convId: string, msg: string | { text?: string; [k: string]: any }) => {
-                // conversationManager.clearContainer();
-                return conversationManager.sendMessage(convId, typeof msg === 'string' ? { text: msg } : msg);
+            sendMessage: (convId: string, message: string | { text?: string; [k: string]: any }) => {
+                // Normalize message input: string becomes { text: string }
+                return conversationManager.sendMessage(convId, typeof message === 'string' ? { text: message } : message);
             },
 
             getConversationHistory: (convId: string) =>
@@ -123,37 +149,43 @@ const GenerativeUI = {
             getMessagesFrom: (convId: string, fromTurnId: string) =>
                 conversationManager.getMessages(convId, { fromTurnId }),
 
-            // Helper to extract just the content from messages
-            extractMessageContent: (messages: any[]) =>
-                messages.map(envelope => envelope.payload?.content).filter(Boolean),
+            extractMessageContent: (messages: Envelope[]) => // Typed as Envelope[]
+                messages.map(envelope => envelope.payload?.content).filter(Boolean) as (string | Component | Children | undefined)[], // Explicit cast for content array
 
-            // Helper to get the last user message context
             getLastUserContext: async (convId: string) => {
                 const messages = await conversationManager.getMessages(convId);
                 const lastUserMessage = messages
                     .filter(env => env.payload?.role === 'user')
                     .pop();
-                return lastUserMessage?.payload?.content;
+                return lastUserMessage?.payload?.content as string | Component | Children | undefined; // Explicit cast
             },
 
-            // open the underlying transport (safe no-op if missing)
             connect: async () => {
-                if (transport && typeof (transport as any).open === 'function') {
-                    await (transport as any).open();
+                // Safely call transport.open() if transport exists and implements it
+                if (transport && typeof transport.open === 'function') {
+                    await transport.open();
+                } else if (transport) {
+                    console.warn("GenerativeUI: Configured transport does not have an 'open' method.");
+                } else {
+                    console.log("GenerativeUI: No transport configured, 'connect' is a no-op.");
                 }
             },
 
-            // event proxies that do nothing if transport is absent
-            onMessage: (cb: (envelope: any) => void) => transport?.onMessage?.(cb),
-            onPatch: (cb: (patch: any) => void) => transport?.onPatch?.(cb),
-            onControl: (cb: (control: any) => void) => transport?.onControl?.(cb),
+            // Event proxies for transport events. Uses optional chaining for robustness.
+            onMessage: (handler: (envelope: Envelope) => void) => transport?.onMessage?.(handler),
+            onPatch: (handler: (patch: Patch) => void) => transport?.onPatch?.(handler),
+            onControl: (handler: (control: any) => void) => transport?.onControl?.(handler), // 'any' pending control payload type
+            onEvent: (handler: (event: TransportEvent) => void) => transport?.onEvent?.(handler),
 
-            // generic event hook if needed
-            onEvent: (cb: (ev: any) => void) => transport?.onEvent?.(cb),
-
-            // disconnect / cleanup
             disconnect: () => {
-                if ((transport as any)?.close) (transport as any).close();
+                // Safely call transport.close() if transport exists and implements it
+                if (transport && typeof transport.close === 'function') {
+                    transport.close();
+                } else if (transport) {
+                    console.warn("GenerativeUI: Configured transport does not have a 'close' method.");
+                } else {
+                    console.log("GenerativeUI: No transport configured, 'disconnect' is a no-op.");
+                }
             },
         };
     },
