@@ -27,7 +27,6 @@ Whether you're developing sophisticated conversational agents, adaptive dashboar
 
 ## Next Goals
 -   [ ] Refine Component styling & theming to match the design system.
--   [ ] Introduce more flexible layout mechanisms (beyond `applyLayoutMeta`).
 -   [ ] Implement a broader range of UI components.
 -   [ ] Enhance Accessibility features across components and the core library.
 -   [ ] Implement a robust Actions handler for interactive UI elements.

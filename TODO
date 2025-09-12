@@ -1,17 +1,15 @@
 Refine Component styling
-Introduce more flexible layout mechanism
 Accessibility (ONGOING)
 route UI actions out to registered handlers and optionally back to the server via a callback API [ActionDispatcher],
 
 Components to implement
     | Chart
-    | CodeBlock
 
 Roadmap (phased, incremental)
 Phase 4 — ActionDispatcher & callbacks
 Implement ActionDispatcher with default DOM event hooking.
 
-Phase 5 — Persistence, UI history components, and tooling
+Phase 5 — Tooling
 Add tests, examples, and docs.
 
 Phase 6 — Advanced features
