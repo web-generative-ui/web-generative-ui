@@ -2,88 +2,94 @@ import type {
     Envelope,
     Transport,
     TransportEvent,
-    WebSocketTransportOptions
+    WebSocketTransportOptions,
+    ControlPayload, TransportOpenEvent, TransportErrorEvent, TransportCloseEvent, TransportDisconnectEvent,
+    TransportReconnectEvent,
 } from "./types.ts";
 import {DEFAULT_RECONNECT_POLICY} from "./types.ts";
+import type {Patch} from "../../schema.ts";
 
 /**
  * Implements a WebSocket-based transport mechanism for real-time communication.
  * This class manages the WebSocket connection lifecycle, sends outgoing messages,
- * queues messages during disconnection, and dispatches incoming messages as `TransportEvent`s.
+ * queues messages during disconnection, and dispatches incoming messages as structured `TransportEvent`s.
  *
  * It is designed to be resilient, supporting automatic reconnection with configurable backoff.
- * The `envelope.convId` field is used to carry conversation IDs for multiplexing
- * (though actual multiplexing logic would typically reside at a higher layer).
+ * The `envelope.convId` field is used to carry conversation IDs for multiplexing,
+ * although the actual multiplexing logic would typically reside at a higher layer.
  */
 export class WebSocketTransport implements Transport {
     /**
      * Indicates whether the WebSocket connection is currently established and ready for communication.
+     * This property is publicly accessible for status monitoring.
      */
     public isConnected = false;
     /**
      * Stores the last error message encountered by the transport, if any.
+     * This property is publicly accessible for status monitoring.
      */
     public lastError?: string;
     /**
-     * Configuration options for the WebSocket transport, including the URL and reconnection policy.
+     * Configuration options for the WebSocket transport, including the `url`,
+     * `reconnectPolicy`, `heartbeatInterval`, and `timeout`.
      */
     public options: WebSocketTransportOptions;
 
     /**
-     * The WebSocket instance managing the connection. `null` if not connected.
+     * The `WebSocket` instance managing the connection. It is `null` when not connected.
      * @private
      */
     private webSocket: WebSocket | null = null;
     /**
-     * A set of registered callback functions that listen to all transport events.
+     * A set of registered callback functions that listen to all generic `TransportEvent`s emitted by this transport.
      * @private
      */
     private eventCallbacks: Set<(event: TransportEvent) => void> = new Set();
     /**
-     * Counter for the number of reconnection attempts made. Resets on successful connection.
+     * Counter for the number of reconnection attempts made. This count is reset on a successful connection.
      * @private
      */
     private reconnectAttempts = 0;
     /**
      * Stores the ID of the timeout used for scheduled reconnection attempts.
-     * `null` if no reconnection is pending.
+     * It is `null` if no reconnection is pending.
      * @private
      */
-    private reconnectTimeoutId: number | null = null;
+    private reconnectTimeoutId: number | NodeJS.Timeout | null = null;
     /**
      * A queue for `Envelope` messages that could not be sent immediately (e.g., due to disconnection).
-     * These messages are flushed when the connection is re-established.
+     * These messages are stored in memory and are flushed when the connection is re-established.
      * @private
      */
     private messageQueue: Envelope[] = [];
 
     /**
-     * Creates an instance of WebSocketTransport.
-     * Initializes with provided initialOptions, applying default reconnection policy if not specified.
-     * @param initialOptions Configuration initialOptions for the WebSocket transport.
+     * Creates an instance of `WebSocketTransport`.
+     * Initializes with provided `initialOptions`, applying the `DEFAULT_RECONNECT_POLICY`
+     * as a base default if not explicitly overridden by the `initialOptions`.
+     * @param initialOptions Configuration options for the WebSocket transport, including the WebSocket `url`.
      */
     constructor(initialOptions: WebSocketTransportOptions) {
         this.options = {
-            reconnectPolicy: DEFAULT_RECONNECT_POLICY, // Apply the default policy first
-            ...initialOptions,                         // Merge initial options, allowing them to override defaults
+            reconnectPolicy: DEFAULT_RECONNECT_POLICY,
+            ...initialOptions,
         };
 
-        // Ensure URL is explicitly set from initialOptions if not already
         if (!this.options.url && initialOptions.url) {
             this.options.url = initialOptions.url;
         }
     }
 
     /**
-     * Registers a callback function to be invoked for all transport events.
-     * @param handler The callback function to register.
+     * Registers a generic callback function to be invoked for all `TransportEvent`s emitted by this transport.
+     * @param handler The callback function to register, which receives a `TransportEvent` object.
      */
     onEvent(handler: (event: TransportEvent) => void): void {
         this.eventCallbacks.add(handler);
     }
 
     /**
-     * Unregisters a callback function from receiving transport events.
+     * Unregisters a previously registered generic callback function from receiving transport events.
      * @param handler The callback function to unregister.
      */
     offEvent(handler: (event: TransportEvent) => void): void {
@@ -91,66 +97,76 @@ export class WebSocketTransport implements Transport {
     }
 
     /**
-     * Dispatches a transport event to all registered handlers.
-     * Callbacks are invoked in a `try-catch` block to prevent one handler from
-     * stopping the execution of others.
+     * Dispatches a `TransportEvent` to all registered callback handlers in `eventCallbacks`.
+     * Each handler is invoked within a `try-catch` block to prevent a single faulty handler
+     * from stopping the execution of others.
      * @private
-     * @param event The `TransportEvent` to emit.
+     * @param event The `TransportEvent` object to emit.
      */
     private emitEvent(event: TransportEvent): void {
         for (const handler of Array.from(this.eventCallbacks)) {
             try {
                 handler(event);
-            } catch (err) {
-                // swallow to avoid killing the transport loop
-                console.error("Transport event handler error:", err);
+            } catch (err: unknown) {
+                console.error("WebSocketTransport: Error in transport event handler:", err, event);
             }
         }
     }
 
     /**
-     * Registers a handler for 'message' type envelopes.
-     * @param handler The callback function to invoke with the received envelope.
+     * Registers a specific handler for incoming 'message' type `Envelope`s.
+     * The callback receives the full `Envelope` object (expected to be `EnvelopeMessage`).
+     * @param handler The callback function to invoke with the received `Envelope`.
      */
     onMessage(handler: (envelope: Envelope) => void): void {
         this.onEvent((event) => {
-            if (event.type === "message" && event.envelope) handler(event.envelope);
+            if (event.type === "message") {
+                handler(event.envelope as Envelope);
+            }
         });
     }
 
     /**
-     * Registers a handler for 'patch' type envelopes.
-     * @param handler The callback function to invoke with the received patch payload.
+     * Registers a specific handler for incoming `Patch` payloads (derived from 'patch' type `Envelope`s).
+     * The callback receives the `Patch` object directly.
+     * @param handler The callback function to invoke with the received `Patch` object.
      */
-    onPatch(handler: (patch: any) => void): void {
+    onPatch(handler: (patch: Patch) => void): void {
         this.onEvent((event) => {
-            if (event.type === "patch" && event.envelope) handler(event.envelope.payload);
+            if (event.type === "patch") {
+                handler(event.envelope.payload as Patch);
+            }
         });
     }
 
     /**
-     * Registers a handler for 'control' type envelopes.
-     * @param handler The callback function to invoke with the received control payload.
+     * Registers a specific handler for incoming `ControlPayload` (derived from 'control' type `Envelope`s).
+     * The callback receives the `ControlPayload` object directly.
+     * @param handler The callback function to invoke with the received `ControlPayload` object.
      */
-    onControl(handler: (control: any) => void): void {
+    onControl(handler: (control: ControlPayload) => void): void {
         this.onEvent((event) => {
-            if (event.type === "control" && event.envelope) handler(event.envelope.payload);
+            if (event.type === "control") {
+                handler(event.envelope.payload as ControlPayload);
+            }
         });
     }
 
     /**
-     * Registers a handler for the 'open' event, triggered when the connection is successfully established.
+     * Registers a handler for the 'open' event, triggered when the transport connection is successfully established.
      * @param handler The callback function to invoke.
      */
     onOpen(handler: () => void): void {
         this.onEvent((event) => {
-            if (event.type === "open") handler();
+            if (event.type === "open") {
+                handler();
+            }
         });
     }
 
     /**
-     * Registers a handler for the 'close' event, triggered when the connection is closed.
-     * @param handler The callback function to invoke with the close code and reason.
+     * Registers a handler for the 'close' event, triggered when the transport connection is closed.
+     * @param handler The callback function to invoke, receiving optional close `code` and `reason`.
      */
     onClose(handler: (code?: number, reason?: string) => void): void {
         this.onEvent((event) => {
@@ -162,52 +178,57 @@ export class WebSocketTransport implements Transport {
 
     /**
      * Registers a handler for 'error' events, triggered when an error occurs in the transport.
-     * @param handler The callback function to invoke with the error message and optional error code.
+     * @param handler The callback function to invoke, receiving the error message and optional error code.
      */
     onError(handler: (error: string, code?: number) => void): void {
         this.onEvent((event) => {
-            if (event.type === "error") handler(event.error, (event as any).code);
+            if (event.type === "error") {
+                handler(event.error, event.code);
+            }
         });
     }
 
     /**
-     * Registers a handler for 'disconnect' events, triggered when the connection is unexpectedly lost.
+     * Registers a handler for 'disconnect' events, triggered when the transport connection is unexpectedly lost.
      * @param handler The callback function to invoke with the disconnection reason.
      */
     onDisconnect(handler: (reason?: string) => void): void {
         this.onEvent((event) => {
-            if (event.type === "disconnect") handler((event as any).reason);
+            if (event.type === "disconnect") {
+                handler(event.reason);
+            }
         });
     }
 
     /**
      * Registers a handler for 'reconnect' events, triggered when a reconnection attempt is made.
-     * @param handler The callback function to invoke with the current attempt number.
+     * The callback receives the current attempt number and the calculated delay before the attempt.
+     * @param handler The callback function to invoke.
      */
-    onReconnect(handler: (attempt: number) => void): void {
+    onReconnect(handler: (attempt: number, delay: number) => void): void {
         this.onEvent((event) => {
-            if (event.type === "reconnect") handler((event as any).attempt);
+            if (event.type === "reconnect") {
+                handler(event.attempt, event.delay);
+            }
         });
     }
 
     /**
      * Sends an `Envelope` message over the WebSocket connection.
      * If the connection is active, the message is sent immediately.
-     * If disconnected or sending fails, the message is queued in-memory and will be
-     * flushed when the connection is re-established.
+     * If disconnected or sending fails, the message is queued in `messageQueue`
+     * and will be flushed when the connection is re-established.
      * @param envelope The `Envelope` to send.
-     * @returns A Promise that resolves to `void` when the message is sent or queued.
+     * @returns A Promise that resolves to `void` when the message is sent or successfully queued.
      */
     async send(envelope: Envelope): Promise<void> {
-        // Queue the message immediately if not connected, or if a previous send attempt failed
         if (!this.isConnected || !this.webSocket) {
             this.messageQueue.push(envelope);
-            // If disconnected, try to open the connection to flush the queue
-            if (!this.webSocket) { // Only attempt open if no WebSocket instance exists (e.g. initial send)
+            if (!this.webSocket) {
                 try {
                     await this.open();
-                } catch (err) {
-                    console.warn("Failed to auto-open WebSocket for sending; message remains queued.", err);
+                } catch (err: unknown) {
+                    console.warn("WebSocketTransport: Failed to auto-open WebSocket for sending; message remains queued.", err);
                 }
             }
             return;
@@ -215,95 +236,92 @@ export class WebSocketTransport implements Transport {
 
         try {
             this.webSocket.send(JSON.stringify(envelope));
-        } catch (err) {
-            // If sending fails for an 'isConnected' WebSocket, queue it and log.
-            // This might happen if connection drops right after `isConnected` check.
+        } catch (err: unknown) {
             this.messageQueue.push(envelope);
-            console.warn("WebSocket send failed; message queued for reconnection.", err);
-            // Trigger disconnection handling, which will initiate reconnection.
+            console.warn("WebSocketTransport: WebSocket send failed; message queued for reconnection.", err);
             this.handleDisconnection();
         }
     }
 
     /**
-     * Establishes a WebSocket connection.
-     * If the connection is already open, this method returns immediately.
-     * This method resolves when the connection is successfully opened, and rejects on failure.
-     * It also initiates flushing of any pending messages from the queue upon successful connection.
-     * @returns A Promise that resolves when the WebSocket connection is successfully opened.
-     * @throws {Error} If the WebSocket URL is not configured.
+     * Establishes a WebSocket connection to the configured `url`.
+     * If a connection is already open (`isConnected` is true and `webSocket` exists), this method returns immediately.
+     * This method returns a Promise that resolves when the connection is successfully opened, and rejects on failure.
+     * It also initiates flushing of any pending messages from the `messageQueue` upon successful connection.
+     * @returns A Promise that resolves to `void` when the WebSocket connection is successfully opened.
+     * @throws {Error} If the WebSocket `url` is not configured in options or if the connection fails to establish.
      */
     async open(): Promise<void> {
-        if (this.isConnected && this.webSocket) return;
+        if (this.isConnected || this.webSocket) return;
 
-        return new Promise((resolve, reject) => {
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+
+        return new Promise<void>((resolve, reject) => {
             try {
                 if (!this.options.url) {
-                    throw new Error("WebSocket URL is not configured");
+                    throw new Error("WebSocket `url` is not configured in options.");
                 }
 
-                // create websocket
                 this.webSocket = new WebSocket(this.options.url);
 
                 this.webSocket.onopen = () => {
                     this.isConnected = true;
                     this.reconnectAttempts = 0;
-                    this.emitEvent({type: "open"});
+                    this.emitEvent({ type: "open" } as TransportOpenEvent);
 
-                    // Flush queued messages
                     while (this.messageQueue.length > 0 && this.webSocket && this.isConnected) {
                         const queuedEnvelope = this.messageQueue.shift()!;
                         try {
                             this.webSocket.send(JSON.stringify(queuedEnvelope));
-                        } catch (err) {
-                            // If flush fails, push the envelope back and stop flushing
+                        } catch (err: unknown) {
                             this.messageQueue.unshift(queuedEnvelope);
-                            console.error("Failed flushing queued envelope:", err);
+                            console.error("WebSocketTransport: Failed flushing queued envelope, re-queuing:", err, queuedEnvelope);
+                            this.handleDisconnection();
                             break;
                         }
                     }
-
                     resolve();
                 };
 
-                this.webSocket.onmessage = (ev: MessageEvent) => {
-                    if (!ev.data) return;
+                this.webSocket.onmessage = (event: MessageEvent) => {
+                    if (!event.data) return;
                     try {
-                        const envelope: Envelope = JSON.parse(ev.data);
-                        // produce the proper TransportEvent shaped object
-                        if (envelope.type === "patch") {
-                            this.emitEvent({type: "patch", envelope} as TransportEvent);
-                        } else if (envelope.type === "control") {
-                            this.emitEvent({type: "control", envelope} as TransportEvent);
-                        } else {
-                            // treat as message by default
-                            this.emitEvent({type: "message", envelope} as TransportEvent);
-                        }
-                    } catch (err) {
-                        this.emitEvent({type: "error", error: "Failed to parse message"});
+                        const envelope: Envelope = JSON.parse(event.data);
+                        this.emitEvent({ type: envelope.type, envelope } as TransportEvent);
+                    } catch (err: unknown) {
+                        this.lastError = "WebSocketTransport: Failed to parse incoming message.";
+                        this.emitEvent({ type: "error", error: this.lastError } as TransportErrorEvent);
                     }
                 };
 
-                this.webSocket.onclose = (ev: CloseEvent) => {
+                this.webSocket.onclose = (event: CloseEvent) => {
                     this.isConnected = false;
+                    this.webSocket = null;
+
                     this.emitEvent({
                         type: "close",
-                        code: ev.code,
-                        reason: ev.reason,
-                    } as TransportEvent);
-                    // handle reconnection according to policy
-                    this.handleDisconnection();
+                        code: event.code,
+                        reason: event.reason,
+                    } as TransportCloseEvent);
+                    this.handleDisconnection(event);
+                    reject(new Error(`WebSocket closed: ${event.code} ${event.reason}`));
                 };
 
-                this.webSocket.onerror = (_) => {
-                    this.lastError = "WebSocket error";
+                this.webSocket.onerror = (_: Event) => {
+                    this.lastError = "WebSocketTransport: WebSocket error occurred.";
                     this.emitEvent({
                         type: "error",
-                        error: "WebSocket error",
-                    } as TransportEvent);
-                    // Some browsers call onclose after onerror; handleDisconnection will be called by onclose.
+                        error: this.lastError,
+                    } as TransportErrorEvent);
                 };
-            } catch (err) {
+            } catch (err: unknown) {
+                this.lastError = `WebSocketTransport: Failed to establish connection: ${String(err)}`;
+                this.emitEvent({ type: "error", error: this.lastError } as TransportErrorEvent);
+                this.webSocket = null;
+                this.handleDisconnection();
                 reject(err);
             }
         });
@@ -311,45 +329,48 @@ export class WebSocketTransport implements Transport {
 
     /**
      * Gracefully closes the WebSocket connection and clears any active reconnection timers.
+     * If the WebSocket is open, it attempts a standard closure (code 1000).
      * Emits a 'disconnect' event with a 'closed_by_client' reason.
      */
     close(): void {
-        // clear reconnect attempts
         if (this.reconnectTimeoutId) {
             clearTimeout(this.reconnectTimeoutId);
             this.reconnectTimeoutId = null;
         }
 
-        if (this.webSocket) {
+        if (this.webSocket && (this.webSocket.readyState === WebSocket.OPEN || this.webSocket.readyState === WebSocket.CONNECTING)) {
             try {
-                this.webSocket.close();
-            } catch {
-                // ignore
+                this.webSocket.close(1000, "Client initiated close");
+            } catch (err: unknown) {
+                console.warn("WebSocketTransport: Error while attempting to close WebSocket:", err);
             }
-            this.webSocket = null;
         }
-
+        this.webSocket = null;
         this.isConnected = false;
-        this.emitEvent({type: "disconnect", reason: "closed_by_client"} as TransportEvent);
+        this.emitEvent({ type: "disconnect", reason: "closed_by_client" } as TransportDisconnectEvent);
     }
 
     /**
-     * Handles the logic for a WebSocket disconnection event (either `onclose` or `onerror`).
-     * It emits a 'disconnect' event, and then initiates reconnection attempts
+     * Handles the logic for a WebSocket disconnection event (triggered by `onclose` or a failed `send`).
+     * It emits a 'disconnect' event and then initiates reconnection attempts
      * based on the configured `reconnectPolicy`.
      * @private
+     * @param closeEvent Optional `CloseEvent` providing details about the closure.
      */
-    private handleDisconnection(): void {
-        this.emitEvent({type: "disconnect"} as TransportEvent);
+    private handleDisconnection(closeEvent?: CloseEvent): void {
+        if (this.isConnected) {
+            this.isConnected = false;
+            this.emitEvent({ type: "disconnect", reason: closeEvent?.reason || "connection_lost" } as TransportDisconnectEvent);
+        }
 
         const reconnectPolicy = this.options.reconnectPolicy!;
-        if (!reconnectPolicy || reconnectPolicy.maxAttempts <= 0) return;
-
-        if (this.reconnectAttempts >= reconnectPolicy.maxAttempts) {
+        if (!reconnectPolicy || reconnectPolicy.maxAttempts === 0 || this.reconnectAttempts >= reconnectPolicy.maxAttempts) {
+            this.lastError = `WebSocketTransport: Max reconnection attempts (${this.reconnectAttempts}/${reconnectPolicy.maxAttempts}) exceeded. Permanent disconnection.`;
             this.emitEvent({
                 type: "error",
-                error: "Max reconnect attempts exceeded",
-            } as TransportEvent);
+                error: this.lastError,
+                code: closeEvent?.code,
+            } as TransportErrorEvent);
             return;
         }
 
@@ -357,21 +378,20 @@ export class WebSocketTransport implements Transport {
         delay = Math.min(delay, reconnectPolicy.maxDelay);
 
         if (reconnectPolicy.jitter) {
-            delay = delay * (0.8 + 0.4 * Math.random()); // 20% jitter +/- 20%
+            delay = delay * (1 - reconnectPolicy.jitter + (2 * reconnectPolicy.jitter * Math.random()));
         }
 
-        this.reconnectTimeoutId = window.setTimeout(() => {
+        this.reconnectTimeoutId = window.setTimeout(async () => {
             this.reconnectAttempts++;
-            this.emitEvent({type: "reconnect", attempt: this.reconnectAttempts} as TransportEvent);
+            this.emitEvent({ type: "reconnect", attempt: this.reconnectAttempts, delay: delay } as TransportReconnectEvent);
+            console.warn(`WebSocketTransport: Attempting to reconnect in ${delay.toFixed(0)}ms (attempt ${this.reconnectAttempts}/${reconnectPolicy.maxAttempts || 'unlimited'})`);
 
-            this.open()
-                .then(() => {
-                    this.emitEvent({type: "reconnect", attempt: this.reconnectAttempts} as TransportEvent);
-                })
-                .catch(() => {
-                    // schedule next attempt
-                    this.handleDisconnection();
-                });
+            try {
+                await this.open();
+                console.log('WebSocketTransport: Reconnected successfully.');
+            } catch (error: unknown) {
+                console.warn('WebSocketTransport: Reconnection attempt failed, scheduling next attempt:', error);
+            }
         }, delay);
     }
 }
