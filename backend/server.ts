@@ -258,7 +258,7 @@ function makeTabs(depth: number, maxDepth: number): Tabs {
     const component: Tabs = {
         component: 'tabs',
         tabs,
-        'active-tab': pick(tabs).id,
+        'activeTab': pick(tabs).id,
     };
     if (maybe(0.3)) component.layout = makeLayoutMeta();
     if (maybe(0.2)) component.key = randId('key-');

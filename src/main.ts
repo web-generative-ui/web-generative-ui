@@ -2,7 +2,7 @@ import "./transition.css";
 import GenerativeUI from "./index";
 
 // =========================
-// SSE Usage Example with History Context
+// SSE Usage Example
 // =========================
 // const ui = await GenerativeUI.init({
 //     container: '#container',
@@ -10,15 +10,6 @@ import GenerativeUI from "./index";
 //         type: 'sse',
 //         streamURL: 'http://localhost:3000/api/llm-stream',
 //         sendURL: 'http://localhost:3000/api/llm-message',
-//     },
-//     historyContext: {
-//         enabled: true,
-//         position: 'right',
-//         width: '300px',
-//         title: 'Conversation History',
-//         collapsible: true,
-//         limit: 15,
-//         autoUpdate: true
 //     }
 // });
 //
@@ -31,7 +22,7 @@ import GenerativeUI from "./index";
 // });
 
 // ========================
-// WebSocket Usage Example with Enhanced History
+// WebSocket Usage Example
 // ========================
 const ui = await GenerativeUI.init({
     container: "#container",
@@ -54,53 +45,6 @@ trigger?.addEventListener("click", async () => {
 const conversations = new Map<string, string>();
 conversations.set("main", convId);
 
-// ========================
-// Enhanced Event Handlers
-// ========================
-
-// optional: register higher-level event handlers via the public API
-ui.onMessage((env) => {
-    console.log("[ui:onMessage]", env);
-
-    // Example: Show notification when new message arrives
-    if (env.payload?.role === "assistant") {
-        console.log("🤖 Assistant replied:", env.payload.content);
-    }
-});
-
-ui.onPatch((patch) => {
-    console.log("[ui:onPatch]", patch);
-
-    // Example: Handle real-time updates to UI components
-    if (patch.type === "component_update") {
-        console.log("🔄 Component updated:", patch.componentId);
-    }
-});
-
-ui.onControl((c) => {
-    console.log("[ui:onControl]", c);
-
-    // Example: Handle control messages (like typing indicators)
-    if (c.type === "typing_start") {
-        console.log("⌨️ Assistant is typing...");
-    } else if (c.type === "typing_end") {
-        console.log("✅ Assistant finished typing");
-    }
-});
-
-// ========================
-// Cleanup and Error Handling
-// ========================
-
-// Enhanced error handling
-ui.onMessage((env) => {
-    if (env.type === "error") {
-        console.error("❌ Error in conversation:", env.payload);
-        // You might want to show this in the UI
-    }
-});
-
-// graceful shutdown with history cleanup
 window.addEventListener("beforeunload", () => {
     console.log("🔌 Disconnecting GenerativeUI...");
     ui.disconnect();
