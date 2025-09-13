@@ -8,6 +8,8 @@ import {WebSocketTransport} from "./core/transport/WebSocketTransport.ts";
 import {ConversationStore} from "./core/conversation/ConversationStore.ts";
 import {LocalStoragePersistence} from "./core/conversation/LocalStoragePersistence.ts";
 import {ConversationManager} from "./core/conversation/ConversationManager.ts";
+import {ChartJsAdapter} from "./charts/ChartJsAdapter.ts";
+import {chartRendererRegistry} from "./charts/ChartRendererRegistry.ts";
 
 /**
  * Represents a high-level instance of the Generative UI library, providing a user-friendly API
@@ -47,7 +49,6 @@ const GenerativeUI = {
         const registry = new Registry();
         const interpreter = new Interpreter(registry);
         registry.setInterpreter(interpreter);
-        // BaseUiComponent relies on a globally set registry for dynamic loading.
         BaseUiComponent.setRegistry(registry);
 
         return registry;
@@ -69,6 +70,17 @@ const GenerativeUI = {
             default:
                 throw new Error(`Unsupported transport type: ${(options as any).type}`);
         }
+    },
+
+    registerChartAdapter() {
+        const chartJsAdapter = new ChartJsAdapter();
+        chartRendererRegistry.register('bar', chartJsAdapter);
+        chartRendererRegistry.register('line', chartJsAdapter);
+        chartRendererRegistry.register('pie', chartJsAdapter);
+        chartRendererRegistry.register('doughnut', chartJsAdapter);
+        chartRendererRegistry.register('scatter', chartJsAdapter);
+        chartRendererRegistry.register('area', chartJsAdapter);
+        chartRendererRegistry.register('radar', chartJsAdapter);
     },
 
     /**
@@ -95,6 +107,8 @@ const GenerativeUI = {
         if (config.clearContainer !== false) {
             (rootElement as HTMLElement).innerHTML = '';
         }
+
+        this.registerChartAdapter();
 
         const providedTransportConfig = config.transport;
         // Type guard to distinguish between TransportOptions and an already instantiated Transport object

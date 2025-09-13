@@ -406,7 +406,7 @@ function makeRandomComponent(depth = 0, maxDepth = 3): Component {
     // If deep enough, bias towards leaf nodes
     const leafBias = depth >= maxDepth ? 0.9 : 0.3;
     const leafPool: (() => Component)[] = [
-        makeText, makeImage, makeVideo, makeButton, makeLink, makeBadge, makeProgress, makeLoading, makeDivider, makeIcon, makeReference
+        makeText, makeImage, makeVideo, makeButton, makeLink, makeBadge, makeProgress, makeLoading, makeDivider, makeIcon, makeReference, makeChart
     ];
     const containerPool: ((depth: number, maxDepth: number) => Component)[] = [
         makeCard, makeBox, makeCollapseBlock, makeTabs, makeCarousel, makeTimeline, makeStream, makeTable
@@ -448,6 +448,7 @@ function makeChart(): Chart {
     const component: Chart = {
         component: 'chart',
         'chart-type': chartType,
+        style: { width: Math.floor(300 + Math.random() * 200), height: Math.floor(200 + Math.random() * 150) },
         data: {
             labels,
             datasets,
@@ -499,119 +500,95 @@ const componentGenerators: { [key: string]: (depth?: number, maxDepth?: number) 
 };
 // ===== END TEST DATA GENERATOR =====
 
-const simulateDynamicResponse = async (
+async function simulateDynamicResponse(
     sendPatch: (patch: Patch) => void,
     closeStream: () => void
-) => {
-    // Registry to track components currently visible on the client.
+) {
     const componentRegistry = new Map<string, Component>();
 
-    // --- Operation Helpers ---
-
-    const addComponent = (component: Component, parentId: string | null) => {
-        // Ensure the component has an ID for future reference.
-        if (!component.id) {
-            component.id = randId(component.component + '-');
-        }
-        sendPatch({ op: 'add', path: parentId, value: component });
+    const addComponentPatch = (component: Component, parentId: string | null): Patch => {
+        if (!component.id) component.id = randId(component.component + '-');
         componentRegistry.set(component.id, component);
-        console.log(`✅ ADD: ${component.component} (id: ${component.id})`);
+        return { op: 'add', path: parentId, value: component };
     };
 
-    const updateComponent = (targetId: string) => {
-        const oldComponent = componentRegistry.get(targetId);
-        if (!oldComponent) return;
-
-        // Get the generator for the component's type.
-        const generator = componentGenerators[oldComponent.component];
-        if (!generator) {
-            console.warn(`No generator found for component type: ${oldComponent.component}`);
-            return;
-        }
-
-        // Create a new component of the same type with new random data.
-        const newComponent = generator();
-        newComponent.id = oldComponent.id; // CRITICAL: Keep the same ID for the update operation.
-
-        sendPatch({ op: 'update', targetId: newComponent.id, value: newComponent });
-        componentRegistry.set(<string>newComponent.id, newComponent); // Update the registry with the new state.
-        console.log(`🔄 UPDATE: ${newComponent.component} (id: ${newComponent.id})`);
+    const updateComponentPatch = (targetId: string): Patch | null => {
+        const old = componentRegistry.get(targetId);
+        if (!old) return null;
+        const generator = componentGenerators[old.component];
+        if (!generator) return null;
+        const newComp = generator();
+        newComp.id = targetId;
+        componentRegistry.set(targetId, newComp);
+        return { op: 'update', targetId, value: newComp };
     };
 
-    const removeComponent = (targetId: string) => {
-        const component = componentRegistry.get(targetId);
-        if(component) {
-            sendPatch({ op: 'remove', targetId });
-            componentRegistry.delete(targetId);
-            console.log(`❌ REMOVE: ${component.component} (id: ${targetId})`);
-        }
+    const removeComponentPatch = (targetId: string): Patch => {
+        componentRegistry.delete(targetId);
+        return { op: 'remove', targetId };
     };
 
-    // --- Simulation Flow ---
+    // --- initial seed ---
+    const mainContainer: Box = {
+        component: 'box',
+        id: 'main-container',
+        children: [],
+        style: { display: 'flex', flexDirection: 'column', gap: '1rem' }
+    };
+    sendPatch(addComponentPatch(mainContainer, null));
 
-    try {
-        // 1. Initial setup: Create a main container and a status card.
-        const mainContainer: Box = { component: 'box', id: 'main-container', children: [], style: { display: 'flex', flexDirection: 'column', gap: '1rem'} };
-        addComponent(mainContainer, null);
-        await new Promise(resolve => setTimeout(resolve, 200));
+    const statusCard: Card = { component: 'card', id: 'status-card', title: '🚀 Starting...' };
+    sendPatch(addComponentPatch(statusCard, 'main-container'));
 
-        const statusCard: Card = { component: 'card', id: 'status-card', title: '🚀 Starting dynamic generation...' };
-        addComponent(statusCard, 'main-container');
-        await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(r => setTimeout(r, 300));
 
-        // 2. Main dynamic loop: Perform a series of random operations.
-        const totalSteps = 15;
-        for (let i = 0; i < totalSteps; i++) {
-            // Update status card to show progress.
-            const statusUpdate: Card = { ...statusCard, title: `⚡ Step ${i + 1}/${totalSteps}... Generating...` };
-            sendPatch({ op: 'update', targetId: 'status-card', value: statusUpdate });
+    // --- bursts ---
+    const totalBursts = rnd(5, 12);
+    for (let b = 0; b < totalBursts; b++) {
+        const existingIds = Array.from(componentRegistry.keys())
+            .filter(id => id !== 'main-container' && id !== 'status-card');
 
-            const operationChance = Math.random();
-            const existingComponentIds = Array.from(componentRegistry.keys()).filter(id => id !== 'main-container' && id !== 'status-card');
+        const burstSize = rnd(2, 5);
+        const patches: Patch[] = [];
 
-            if (existingComponentIds.length < 3 || operationChance < 0.50) {
-                // ADD (50% chance)
-                const newComponent = makeRandomComponent(0, 2);
-                addComponent(newComponent, 'main-container');
+        for (let i = 0; i < burstSize; i++) {
+            const chance = Math.random();
 
-            } else if (operationChance < 0.90 && existingComponentIds.length > 0) {
-                // UPDATE (40% chance)
-                const targetId = pick(existingComponentIds);
-
-                // NEW: Decide whether to update content or just the layout
-                if (Math.random() < 0.4) {
-                    // Update Layout Only (40% of updates)
-                    const componentToUpdate = { ...componentRegistry.get(targetId)! };
-                    componentToUpdate.layout = makeLayoutMeta(); // Generate a new random layout
-                    sendPatch({ op: 'update', targetId, value: componentToUpdate });
-                    componentRegistry.set(targetId, componentToUpdate);
-                    console.log(`🎨 UPDATE_LAYOUT: (id: ${targetId})`);
-
-                } else {
-                    // Update Content (60% of updates)
-                    updateComponent(targetId); // This is the original update function
-                }
-            } else if (existingComponentIds.length > 1) {
-                // REMOVE (10% chance)
-                const targetId = pick(existingComponentIds);
-                removeComponent(targetId);
+            if (existingIds.length < 3 || chance < 0.5) {
+                const comp = makeRandomComponent(0, 2);
+                patches.push(addComponentPatch(comp, 'main-container'));
+                existingIds.push(comp.id!);
+            } else if (chance < 0.85 && existingIds.length > 0) {
+                const id = pick(existingIds);
+                const patch = updateComponentPatch(id);
+                if (patch) patches.push(patch);
+            } else if (existingIds.length > 0) {
+                const id = pick(existingIds);
+                patches.push(removeComponentPatch(id));
+                const idx = existingIds.indexOf(id);
+                if (idx >= 0) existingIds.splice(idx, 1);
             }
-
-            await new Promise(resolve => setTimeout(resolve, rnd(500, 1000)));
         }
 
-        // 3. Final cleanup: Update status to "complete" and close the stream.
-        const finalStatus: Card = { component: 'card', id: 'status-card', title: '✅ Dynamic generation complete!' };
-        sendPatch({ op: 'update', targetId: 'status-card', value: finalStatus });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // send burst patches with micro-delays
+        for (const p of patches) {
+            sendPatch(p);
+            await new Promise(r => setTimeout(r, rnd(10, 60)));
+        }
 
-        closeStream();
-
-    } catch (err) {
-        console.error('Error during dynamic simulation:', err);
-        closeStream(); // Ensure the stream is closed on error.
+        // pause before next burst
+        await new Promise(r => setTimeout(r, rnd(200, 600)));
     }
-};
+
+    // final status
+    sendPatch(updateComponentPatch('status-card') ?? {
+        op: 'update',
+        targetId: 'status-card',
+        value: { component: 'card', id: 'status-card', title: '✅ Done!' }
+    });
+
+    closeStream();
+}
 
 app.get('/api/llm-stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -672,72 +649,101 @@ const wss = new WebSocketServer({noServer: true});
 const clientStates = new Map<WebSocket, Map<string, Component>>();
 
 // Handle WebSocket connections with random data
+// 3) update the WebSocket message handler to produce bursts (replace ws.on('message', ...) block)
 wss.on('connection', (ws: WebSocket, req) => {
     console.log('WebSocket client connected:', req.socket.remoteAddress);
 
-    // 1. Initialize state for the newly connected client.
-    const componentRegistry = new Map<string, Component>();
-    clientStates.set(ws, componentRegistry);
+    const registry = new Map<string, Component>();
+    clientStates.set(ws, registry);
 
-    // Helper to send a patch to this specific client
     const sendPatch = (patch: Patch) => {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'patch', payload: patch }));
         }
     };
 
-    // 2. Send an initial component to start things off.
-    const initialBox: Box = { component: 'box', id: randId('ws-box-'), children: [
-            { component: 'text', text: "Send any message to randomly add, update, or remove components here!" }
-        ]};
-    componentRegistry.set(initialBox.id!, initialBox);
-    sendPatch({ op: 'add', path: null, value: initialBox });
+    const addComponentPatch = (component: Component, parentId: string | null): Patch => {
+        if (!component.id) component.id = randId(component.component + '-');
+        registry.set(component.id, component);
+        return { op: 'add', path: parentId, value: component };
+    };
 
+    const updateComponentPatch = (targetId: string): Patch | null => {
+        const old = registry.get(targetId);
+        if (!old) return null;
+        const generator = componentGenerators[old.component];
+        if (!generator) return null;
+        const newComp = generator();
+        newComp.id = targetId;
+        registry.set(targetId, newComp);
+        return { op: 'update', targetId, value: newComp };
+    };
 
-    ws.on('message', (data) => {
+    const removeComponentPatch = (targetId: string): Patch => {
+        registry.delete(targetId);
+        return { op: 'remove', targetId };
+    };
+
+    // seed initial container
+    const mainBox: Box = {
+        component: 'box',
+        id: 'ws-main-container',
+        children: [{ component: 'text', text: 'Send any message to trigger bursts of patches!' }]
+    };
+    sendPatch(addComponentPatch(mainBox, null));
+
+    ws.on('message', async (data) => {
         console.log('WS recv:', data.toString());
-        const parentId = initialBox.id!; // We'll add all new components to our initial box.
-        const registry = clientStates.get(ws)!;
 
-        // 3. Perform a single random operation on message receipt.
-        const operationChance = Math.random();
-        const existingIds = Array.from(registry.keys()).filter(id => id !== parentId);
+        const parentId = mainBox.id!;
+        const burstsToEmit = rnd(2, 4); // number of bursts per message
 
-        if (existingIds.length < 3 || operationChance < 0.5) {
-            // ADD
-            const newComponent = makeRandomComponent(0, 1);
-            newComponent.id = randId('ws-');
-            registry.set(newComponent.id, newComponent);
-            sendPatch({ op: 'add', path: parentId, value: newComponent });
+        for (let b = 0; b < burstsToEmit; b++) {
+            const existingIds = Array.from(registry.keys()).filter(id => id !== parentId);
+            const burstSize = rnd(2, 5); // 2–5 patches per burst
+            const patches: Patch[] = [];
 
-        } else if (operationChance < 0.8 && existingIds.length > 0) {
-            // UPDATE
-            const targetId = pick(existingIds);
-            const oldComponent = registry.get(targetId)!;
-            const generator = componentGenerators[oldComponent.component];
-            if (generator) {
-                const newComponent = generator();
-                newComponent.id = targetId; // Keep the same ID
-                registry.set(targetId, newComponent);
-                sendPatch({ op: 'update', targetId: targetId, value: newComponent });
+            for (let i = 0; i < burstSize; i++) {
+                const chance = Math.random();
+
+                if (existingIds.length < 3 || chance < 0.5) {
+                    // ADD
+                    const comp = makeRandomComponent(0, 2);
+                    patches.push(addComponentPatch(comp, parentId));
+                    existingIds.push(comp.id!);
+                } else if (chance < 0.85 && existingIds.length > 0) {
+                    // UPDATE
+                    const id = pick(existingIds);
+                    const patch = updateComponentPatch(id);
+                    if (patch) patches.push(patch);
+                } else if (existingIds.length > 0) {
+                    // REMOVE
+                    const id = pick(existingIds);
+                    patches.push(removeComponentPatch(id));
+                    const idx = existingIds.indexOf(id);
+                    if (idx >= 0) existingIds.splice(idx, 1);
+                }
             }
-        } else if (existingIds.length > 0) {
-            // REMOVE
-            const targetId = pick(existingIds);
-            registry.delete(targetId);
-            sendPatch({ op: 'remove', targetId: targetId });
+
+            // emit burst with micro-delays
+            for (const p of patches) {
+                sendPatch(p);
+                await new Promise(r => setTimeout(r, rnd(10, 60)));
+            }
+
+            // pause between bursts
+            await new Promise(r => setTimeout(r, rnd(200, 600)));
         }
     });
 
-    ws.on('close', (code, reason) => {
-        // 4. Clean up state when the client disconnects.
+    ws.on('close', () => {
         clientStates.delete(ws);
-        console.log('WS client disconnected', code, reason?.toString());
+        console.log('WS client disconnected');
     });
 
     ws.on('error', (err) => {
         console.error('WS error', err);
-        clientStates.delete(ws); // Also clean up on error
+        clientStates.delete(ws);
     });
 });
 
