@@ -1,4 +1,4 @@
-import type { Patch } from '../../schema.ts';
+import type { Patch } from '../../schema.d.ts';
 
 /**
  * Defines the structure for various control messages that can be sent or received.
