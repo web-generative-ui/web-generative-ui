@@ -1,4 +1,4 @@
-import type {Link} from "../schema.ts";
+import type {Link} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";
 

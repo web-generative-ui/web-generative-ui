@@ -1,4 +1,4 @@
-import type {Icon} from "../schema.ts";
+import type {Icon} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 import {IconRegistry} from "../core/IconRegistry.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";

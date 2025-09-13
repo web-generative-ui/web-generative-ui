@@ -1,4 +1,4 @@
-import type {Table} from "../schema.ts";
+import type {Table} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 import {applyLayoutMeta, escapeHtml} from "../core/common.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";
@@ -186,7 +186,7 @@ export class UiTable extends BaseUiComponent {
 
                     // Apply layout metadata (flex/grid hints) to wrapper
                     applyLayoutMeta(wrapper, child.layout);
-                    if (child.style) { // Apply inline style from schema.ts
+                    if (child.style) { // Apply inline style from schema.d.ts
                         Object.assign(wrapper.style, child.style);
                     }
 

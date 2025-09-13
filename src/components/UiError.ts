@@ -1,5 +1,5 @@
 import {BaseUiComponent} from "./BaseUiComponent.ts";
-import type {Error} from "../schema.ts";
+import type {Error} from "../schema.d.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";
 
 /**

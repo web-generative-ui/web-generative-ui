@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type {Carousel, Icon, TransitionConfig} from "../schema.ts";
+import type {Carousel, Icon, TransitionConfig} from "../schema.d.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";
 
 /**

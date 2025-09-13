@@ -1,5 +1,5 @@
 import { BaseUiComponent } from "./BaseUiComponent.ts";
-import type {Loading, TransitionConfig} from "../schema.ts";
+import type {Loading, TransitionConfig} from "../schema.d.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";
 
 /**

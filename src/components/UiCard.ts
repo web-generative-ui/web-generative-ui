@@ -1,4 +1,4 @@
-import type {Card, TransitionConfig} from '../schema.ts';
+import type {Card, TransitionConfig} from '../schema.d.ts';
 import {BaseUiComponent} from './BaseUiComponent';
 import {applyLayoutMeta} from "../core/common.ts";
 

@@ -1,5 +1,5 @@
 import {BaseUiComponent} from "./BaseUiComponent.ts";
-import type {Button, TransitionConfig} from "../schema.ts";
+import type {Button, TransitionConfig} from "../schema.d.ts";
 
 /**
  * `UiButton` is a custom UI component that renders a clickable button.

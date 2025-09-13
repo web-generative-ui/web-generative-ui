@@ -1,4 +1,4 @@
-import type {Box} from "../schema.ts";
+import type {Box} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 import {applyLayoutMeta} from "../core/common.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";

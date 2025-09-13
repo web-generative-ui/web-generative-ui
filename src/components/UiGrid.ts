@@ -1,4 +1,4 @@
-import type {Grid} from "../schema.ts";
+import type {Grid} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 import {applyLayoutMeta} from "../core/common.ts";
 import {formatInlineStyle, formatLayoutMetaAsHostStyle} from "./common.ts";

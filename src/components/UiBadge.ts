@@ -1,4 +1,4 @@
-import type {Badge, TransitionConfig} from "../schema.ts";
+import type {Badge, TransitionConfig} from "../schema.d.ts";
 import {BaseUiComponent} from "./BaseUiComponent.ts";
 
 /**
