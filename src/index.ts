@@ -1,7 +1,7 @@
 import {Registry} from './core/Registry';
 import {Interpreter} from './core/Interpreter';
 import {BaseUiComponent} from './components/BaseUiComponent';
-import type {GenerativeUIConfig, Patch, Component, Children} from "./schema.ts";
+import type {GenerativeUIConfig, Patch, Component, Children} from "./schema.d.ts";
 import type {Transport, TransportOptions, Envelope, TransportEvent} from "./core/transport/types.ts";
 import {SSETransport} from "./core/transport/SSETransport.ts";
 import {WebSocketTransport} from "./core/transport/WebSocketTransport.ts";

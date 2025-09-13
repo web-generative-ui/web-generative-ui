@@ -1,5 +1,5 @@
-import type {Children} from "../schema.ts";
-import type {LayoutMeta} from "../schema.ts";
+import type {Children} from "../schema.d.ts";
+import type {LayoutMeta} from "../schema.d.ts";
 
 /**
  * Normalizes and extracts an array of child components from various potential fields

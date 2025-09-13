@@ -1,4 +1,4 @@
-import type {Transport, TransportOptions} from "./core/transport/types.d.ts";
+import type {Transport, TransportOptions} from "./core/transport/types.ts";
 
 /**
  * Configuration options for initializing the Generative UI library.

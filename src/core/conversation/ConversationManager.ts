@@ -1,7 +1,7 @@
 import type {Interpreter} from "../Interpreter.ts";
 import type {Envelope, Transport} from "../transport/types.ts";
 import type {ConversationStore} from "./ConversationStore.ts";
-import type {Children, Component, Patch, Text} from "../../schema.ts";
+import type {Children, Component, Patch, Text} from "../../schema.d.ts";
 
 /**
  * Manages the lifecycle and interaction for generative UI conversations.

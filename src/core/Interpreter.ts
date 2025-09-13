@@ -1,4 +1,4 @@
-import type {Children, Component, Patch, TransitionConfig} from '../schema.ts';
+import type {Children, Component, Patch, TransitionConfig} from '../schema.d.ts';
 import {componentTagMap} from "./ComponentMapping.ts";
 import type {Registry} from "./Registry.ts";
 import type {Envelope} from "./transport/types.ts";

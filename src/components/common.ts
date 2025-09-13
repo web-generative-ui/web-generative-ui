@@ -1,4 +1,4 @@
-import type {LayoutMeta} from "../schema.ts";
+import type {LayoutMeta} from "../schema.d.ts";
 
 /**
  * Formats a style object into a CSS string for inline application.

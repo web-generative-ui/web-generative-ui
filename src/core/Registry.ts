@@ -1,6 +1,6 @@
 import {Interpreter} from './Interpreter';
 import {componentTagMap} from './ComponentMapping.ts';
-import type {Children, Component, ElementModule} from '../schema.ts';
+import type {Children, Component, ElementModule} from '../schema.d.ts';
 import {normalizeChildrenField} from "./common.ts";
 
 /**
@@ -45,6 +45,7 @@ export class Registry {
         'stream': () => import('../components/UiStream').then(mod => ({default: mod.UiStream})),
         'table': () => import('../components/UiTable').then(mod => ({default: mod.UiTable})),
         'error': () => import('../components/UiError').then(mod => ({default: mod.UiError})),
+        'chart': () => import('../components/UiChart').then(mod => ({default: mod.UiChart})),
     };
 
     constructor() {
