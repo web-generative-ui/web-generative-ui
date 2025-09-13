@@ -29,8 +29,6 @@ app.use(cors({
     credentials: true,
 }));
 
-// ===== INTEGRATED TEST DATA GENERATOR =====
-
 // Helper utilities [random generation]
 function rnd(min = 0, max = 1) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -423,6 +421,33 @@ function makeRandomComponent(depth = 0, maxDepth = 3): Component {
     return chosen(depth, maxDepth);
 }
 
+const componentGenerators: { [key: string]: (depth?: number, maxDepth?: number) => Component } = {
+    'table': (d = 0, m = 2) => makeTable(d, m),
+    'chart': () => { throw new Error("Chart generator not implemented in example"); }, // Placeholder
+    'grid': (d = 0, m = 2) => makeBox(d, m), // Using makeBox for Grid-like structure
+    'spacer': () => { throw new Error("Spacer generator not implemented in example"); }, // Placeholder
+    'timeline': makeTimeline,
+    'stream': (d = 0, m = 2) => makeStream(d, m),
+    'carousel': (d = 0, m = 2) => makeCarousel(d, m),
+    'card': (d = 0, m = 2) => makeCard(d, m),
+    'text': makeText,
+    'code-block': () => { throw new Error("CodeBlock generator not implemented in example"); }, // Placeholder
+    'image': makeImage,
+    'video': makeVideo,
+    'icon': makeIcon,
+    'button': makeButton,
+    'link': makeLink,
+    'badge': makeBadge,
+    'progress': makeProgress,
+    'loading': makeLoading,
+    'box': (d = 0, m = 2) => makeBox(d, m),
+    'divider': makeDivider,
+    'tabs': (d = 0, m = 2) => makeTabs(d, m),
+    'collapse-block': (d = 0, m = 2) => makeCollapseBlock(d, m),
+    'reference': makeReference,
+    'error': () => { throw new Error("Error component generator not implemented in example"); }, // Placeholder
+};
+
 function generateRandomComponents(count = 3, maxDepth = 3): Component[] {
     const out: Component[] = [];
     for (let i = 0; i < count; i++) out.push(makeRandomComponent(0, maxDepth));
@@ -431,13 +456,127 @@ function generateRandomComponents(count = 3, maxDepth = 3): Component[] {
 
 // ===== END TEST DATA GENERATOR =====
 
+const simulateDynamicResponse = async (
+    sendPatch: (patch: Patch) => void,
+    closeStream: () => void
+) => {
+    // Registry to track components currently visible on the client.
+    const componentRegistry = new Map<string, Component>();
+
+    // --- Operation Helpers ---
+
+    const addComponent = (component: Component, parentId: string | null) => {
+        // Ensure the component has an ID for future reference.
+        if (!component.id) {
+            component.id = randId(component.component + '-');
+        }
+        sendPatch({ op: 'add', path: parentId, value: component });
+        componentRegistry.set(component.id, component);
+        console.log(`✅ ADD: ${component.component} (id: ${component.id})`);
+    };
+
+    const updateComponent = (targetId: string) => {
+        const oldComponent = componentRegistry.get(targetId);
+        if (!oldComponent) return;
+
+        // Get the generator for the component's type.
+        const generator = componentGenerators[oldComponent.component];
+        if (!generator) {
+            console.warn(`No generator found for component type: ${oldComponent.component}`);
+            return;
+        }
+
+        // Create a new component of the same type with new random data.
+        const newComponent = generator();
+        newComponent.id = oldComponent.id; // CRITICAL: Keep the same ID for the update operation.
+
+        sendPatch({ op: 'update', targetId: newComponent.id, value: newComponent });
+        componentRegistry.set(<string>newComponent.id, newComponent); // Update the registry with the new state.
+        console.log(`🔄 UPDATE: ${newComponent.component} (id: ${newComponent.id})`);
+    };
+
+    const removeComponent = (targetId: string) => {
+        const component = componentRegistry.get(targetId);
+        if(component) {
+            sendPatch({ op: 'remove', targetId });
+            componentRegistry.delete(targetId);
+            console.log(`❌ REMOVE: ${component.component} (id: ${targetId})`);
+        }
+    };
+
+    // --- Simulation Flow ---
+
+    try {
+        // 1. Initial setup: Create a main container and a status card.
+        const mainContainer: Box = { component: 'box', id: 'main-container', children: [], style: { display: 'flex', flexDirection: 'column', gap: '1rem'} };
+        addComponent(mainContainer, null);
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const statusCard: Card = { component: 'card', id: 'status-card', title: '🚀 Starting dynamic generation...' };
+        addComponent(statusCard, 'main-container');
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 2. Main dynamic loop: Perform a series of random operations.
+        const totalSteps = 15;
+        for (let i = 0; i < totalSteps; i++) {
+            // Update status card to show progress.
+            const statusUpdate: Card = { ...statusCard, title: `⚡ Step ${i + 1}/${totalSteps}... Generating...` };
+            sendPatch({ op: 'update', targetId: 'status-card', value: statusUpdate });
+
+            const operationChance = Math.random();
+            const existingComponentIds = Array.from(componentRegistry.keys()).filter(id => id !== 'main-container' && id !== 'status-card');
+
+            if (existingComponentIds.length < 3 || operationChance < 0.50) {
+                // ADD (50% chance)
+                const newComponent = makeRandomComponent(0, 2);
+                addComponent(newComponent, 'main-container');
+
+            } else if (operationChance < 0.90 && existingComponentIds.length > 0) {
+                // UPDATE (40% chance)
+                const targetId = pick(existingComponentIds);
+
+                // NEW: Decide whether to update content or just the layout
+                if (Math.random() < 0.4) {
+                    // Update Layout Only (40% of updates)
+                    const componentToUpdate = { ...componentRegistry.get(targetId)! };
+                    componentToUpdate.layout = makeLayoutMeta(); // Generate a new random layout
+                    sendPatch({ op: 'update', targetId, value: componentToUpdate });
+                    componentRegistry.set(targetId, componentToUpdate);
+                    console.log(`🎨 UPDATE_LAYOUT: (id: ${targetId})`);
+
+                } else {
+                    // Update Content (60% of updates)
+                    updateComponent(targetId); // This is the original update function
+                }
+            } else if (existingComponentIds.length > 1) {
+                // REMOVE (10% chance)
+                const targetId = pick(existingComponentIds);
+                removeComponent(targetId);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, rnd(500, 1000)));
+        }
+
+        // 3. Final cleanup: Update status to "complete" and close the stream.
+        const finalStatus: Card = { component: 'card', id: 'status-card', title: '✅ Dynamic generation complete!' };
+        sendPatch({ op: 'update', targetId: 'status-card', value: finalStatus });
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        closeStream();
+
+    } catch (err) {
+        console.error('Error during dynamic simulation:', err);
+        closeStream(); // Ensure the stream is closed on error.
+    }
+};
+
 app.get('/api/llm-stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    console.log('Client connected for SSE stream.');
+    console.log('Client connected for dynamic SSE stream.');
 
     const sendPatch = (patch: Patch) => {
         const envelope = {
@@ -445,83 +584,26 @@ app.get('/api/llm-stream', (req: Request, res: Response) => {
             payload: patch
         };
         const data = `data: ${JSON.stringify(envelope)}\n\n`;
-        res.write(data);
+        if (!res.writableEnded) {
+            res.write(data);
+        }
     };
 
     const closeStream = () => {
-        res.write('event: close\n\n');
-    };
-
-    const simulateResponseWithRandomData = async () => {
-        // Add a main container
-        sendPatch({
-            op: 'add',
-            path: null,
-            value: {component: 'box', id: 'main-container'},
-        });
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // Add initial status card
-        sendPatch({
-            op: 'add',
-            path: 'main-container',
-            value: {component: 'card', id: 'status-card', title: '🚀 Generating Content...'},
-        });
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Add loading indicator
-        sendPatch({
-            op: 'add',
-            path: 'status-card',
-            value: makeLoading(),
-        });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Update status
-        sendPatch({
-            op: 'update',
-            targetId: 'status-card',
-            value: {component: 'card', id: 'status-card', title: '⚡ Processing Data...'},
-        });
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Generate and add random components
-        const randomComponents = generateRandomComponents(rnd(2, 5), 2);
-
-        for (let i = 0; i < randomComponents.length; i++) {
-            const component = randomComponents[i];
-            component.id = `generated-${i}-${randId()}`;
-
-            sendPatch({
-                op: 'add',
-                path: 'main-container',
-                value: component,
-            });
-
-            // Stagger the additions for dramatic effect
-            await new Promise(resolve => setTimeout(resolve, rnd(300, 800)));
+        if (!res.writableEnded) {
+            res.write('event: close\n\n');
+            res.end();
+            console.log('SSE Stream closed.');
         }
-
-        // Update final status
-        sendPatch({
-            op: 'update',
-            targetId: 'status-card',
-            value: {component: 'card', id: 'status-card', title: '✅ Content Generated Successfully'},
-        });
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        closeStream();
-        res.end();
     };
 
-    simulateResponseWithRandomData().catch(err => {
-        console.error('Error in simulateResponseWithRandomData:', err);
-        res.end();
+    simulateDynamicResponse(sendPatch, closeStream).catch(err => {
+        console.error('Error in simulateDynamicResponse:', err);
+        closeStream();
     });
 
     req.on('close', () => {
         console.log('Client disconnected.');
-        res.end();
     });
 });
 
@@ -544,66 +626,75 @@ app.get('*', (_, res) => {
 const server = http.createServer(app);
 const wss = new WebSocketServer({noServer: true});
 
+const clientStates = new Map<WebSocket, Map<string, Component>>();
+
 // Handle WebSocket connections with random data
 wss.on('connection', (ws: WebSocket, req) => {
     console.log('WebSocket client connected:', req.socket.remoteAddress);
 
+    // 1. Initialize state for the newly connected client.
+    const componentRegistry = new Map<string, Component>();
+    clientStates.set(ws, componentRegistry);
+
+    // Helper to send a patch to this specific client
+    const sendPatch = (patch: Patch) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'patch', payload: patch }));
+        }
+    };
+
+    // 2. Send an initial component to start things off.
+    const initialBox: Box = { component: 'box', id: randId('ws-box-'), children: [
+            { component: 'text', text: "Send any message to randomly add, update, or remove components here!" }
+        ]};
+    componentRegistry.set(initialBox.id!, initialBox);
+    sendPatch({ op: 'add', path: null, value: initialBox });
+
+
     ws.on('message', (data) => {
-        try {
-            const envelope = JSON.parse(data.toString());
-            console.log('WS recv:', envelope);
+        console.log('WS recv:', data.toString());
+        const parentId = initialBox.id!; // We'll add all new components to our initial box.
+        const registry = clientStates.get(ws)!;
 
-            const convId = envelope?.convId ?? 'unknown-conv';
+        // 3. Perform a single random operation on message receipt.
+        const operationChance = Math.random();
+        const existingIds = Array.from(registry.keys()).filter(id => id !== parentId);
 
-            // Send acknowledgment message
-            const ackEnvelope = {
-                type: 'message',
-                convId,
-                turnId: 'srv-ack-' + Date.now(),
-                payload: {
-                    role: 'assistant',
-                    content: {text: `Processing: ${String(envelope?.payload?.content?.text ?? '')}`}
-                }
-            };
-            ws.send(JSON.stringify(ackEnvelope));
+        if (existingIds.length < 3 || operationChance < 0.5) {
+            // ADD
+            const newComponent = makeRandomComponent(0, 1);
+            newComponent.id = randId('ws-');
+            registry.set(newComponent.id, newComponent);
+            sendPatch({ op: 'add', path: parentId, value: newComponent });
 
-            // Send random components as patches
-            setTimeout(() => {
-                const randomComponent = makeRandomComponent(0, 2);
-                randomComponent.id = `ws-${convId}-${Date.now()}`;
-
-                const patch = {
-                    op: 'add',
-                    path: null,
-                    value: randomComponent
-                };
-                ws.send(JSON.stringify({type: 'patch', convId, payload: patch}));
-            }, 500);
-
-            // Send another random component after delay
-            setTimeout(() => {
-                const randomComponent2 = makeRandomComponent(0, 1);
-                randomComponent2.id = `ws-${convId}-${Date.now()}-2`;
-
-                const patch = {
-                    op: 'add',
-                    path: null,
-                    value: randomComponent2
-                };
-                ws.send(JSON.stringify({type: 'patch', convId, payload: patch}));
-            }, 1200);
-        } catch (err) {
-            console.error('Failed to parse WS message', err);
-            ws.send(JSON.stringify({type: 'control', convId: 'unknown', payload: {error: 'bad_request'}}));
+        } else if (operationChance < 0.8 && existingIds.length > 0) {
+            // UPDATE
+            const targetId = pick(existingIds);
+            const oldComponent = registry.get(targetId)!;
+            const generator = componentGenerators[oldComponent.component];
+            if (generator) {
+                const newComponent = generator();
+                newComponent.id = targetId; // Keep the same ID
+                registry.set(targetId, newComponent);
+                sendPatch({ op: 'update', targetId: targetId, value: newComponent });
+            }
+        } else if (existingIds.length > 0) {
+            // REMOVE
+            const targetId = pick(existingIds);
+            registry.delete(targetId);
+            sendPatch({ op: 'remove', targetId: targetId });
         }
     });
 
     ws.on('close', (code, reason) => {
+        // 4. Clean up state when the client disconnects.
+        clientStates.delete(ws);
         console.log('WS client disconnected', code, reason?.toString());
     });
 
     ws.on('error', (err) => {
         console.error('WS error', err);
+        clientStates.delete(ws); // Also clean up on error
     });
 });
 

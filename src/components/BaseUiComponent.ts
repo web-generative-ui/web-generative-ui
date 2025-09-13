@@ -101,6 +101,8 @@ export abstract class BaseUiComponent extends HTMLElement {
         }
         this.registry = BaseUiComponent._registry;
         this.store = BaseUiComponent._store;
+
+        this.shadow = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     }
 
     /**
