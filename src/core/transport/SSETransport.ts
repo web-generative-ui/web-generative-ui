@@ -1,6 +1,6 @@
 import type {TransportEvent, Transport, SSETransportOptions, Envelope, ControlPayload} from './types.ts';
 import {DEFAULT_RECONNECT_POLICY} from './types.ts';
-import type {Patch} from "../../schema.ts";
+import type {Patch} from "../../schema.d.ts";
 
 /**
  * Implements a Server-Sent Events (SSE) based transport mechanism for real-time communication.

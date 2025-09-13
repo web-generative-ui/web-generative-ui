@@ -7,7 +7,7 @@ import type {
     TransportReconnectEvent,
 } from "./types.ts";
 import {DEFAULT_RECONNECT_POLICY} from "./types.ts";
-import type {Patch} from "../../schema.ts";
+import type {Patch} from "../../schema.d.ts";
 
 /**
  * Implements a WebSocket-based transport mechanism for real-time communication.
