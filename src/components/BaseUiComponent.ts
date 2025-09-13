@@ -1,5 +1,5 @@
 import type {Registry} from "../core/Registry.ts";
-import type {TransitionConfig, LayoutMeta} from "../schema.ts";
+import type {TransitionConfig, LayoutMeta} from "../schema.d.ts";
 import type {ConversationStore} from "../core/conversation/ConversationStore.ts";
 
 /**
