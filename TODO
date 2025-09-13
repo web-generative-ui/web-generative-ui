@@ -2,15 +2,12 @@ Refine Component styling
 Accessibility (ONGOING)
 route UI actions out to registered handlers and optionally back to the server via a callback API [ActionDispatcher],
 
-Components to implement
-    | Chart
-
-Roadmap (phased, incremental)
+Roadmap
 Phase 4 — ActionDispatcher & callbacks
 Implement ActionDispatcher with default DOM event hooking.
 
-Phase 5 — Tooling
-Add tests, examples, and docs.
+Phase 5 — UI Components
+Accessibility
 
 Phase 6 — Advanced features
 Branching replies, multi-model session switching.
