@@ -4,7 +4,7 @@ import cors from 'cors';
 import {Request, Response} from 'express';
 import {WebSocketServer, WebSocket} from 'ws';
 import http from 'http';
-import {Badge, LayoutMeta, Link, Loading, Patch, Progress, Reference, Table, Tabs, Video} from "./schema";
+import {Badge, Chart, LayoutMeta, Link, Loading, Patch, Progress, Reference, Table, Tabs, Video} from "./schema";
 import type {
     Box,
     Button,
@@ -421,9 +421,61 @@ function makeRandomComponent(depth = 0, maxDepth = 3): Component {
     return chosen(depth, maxDepth);
 }
 
+function makeChart(): Chart {
+    const chartTypes = ['bar', 'line', 'pie', 'doughnut', 'scatter', 'area', 'radar'] as const;
+    const chartType = pick(chartTypes);
+
+    const labels = ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'];
+    const datasetCount = rnd(1, 2);
+
+    // A few color palettes for better visual coherence
+    const colorPalettes = [
+        { backgroundColor: 'rgba(255, 99, 132, 0.5)', borderColor: 'rgb(255, 99, 132)' },
+        { backgroundColor: 'rgba(54, 162, 235, 0.5)', borderColor: 'rgb(54, 162, 235)' },
+        { backgroundColor: 'rgba(255, 205, 86, 0.5)', borderColor: 'rgb(255, 205, 86)' },
+        { backgroundColor: 'rgba(75, 192, 192, 0.5)', borderColor: 'rgb(75, 192, 192)' },
+    ];
+
+    const datasets = Array.from({ length: datasetCount }, (_, i) => {
+        const palette = colorPalettes[i % colorPalettes.length];
+        return {
+            label: `Series ${i + 1}`,
+            data: Array.from({ length: labels.length }, () => rnd(10, 100)),
+            style: { ...palette },
+        };
+    });
+
+    const component: Chart = {
+        component: 'chart',
+        'chart-type': chartType,
+        data: {
+            labels,
+            datasets,
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: datasetCount > 1, // Only show legend for multiple datasets
+                    position: pick(['top', 'bottom']),
+                },
+                title: {
+                    display: maybe(0.8), // 80% chance of having a title
+                    text: `Randomly Generated ${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`,
+                },
+            },
+        },
+    };
+
+    // Add standard optional properties
+    if (maybe(0.3)) component.layout = makeLayoutMeta();
+    if (maybe(0.2)) component.key = randId('key-');
+    return component;
+}
+
 const componentGenerators: { [key: string]: (depth?: number, maxDepth?: number) => Component } = {
     'table': (d = 0, m = 2) => makeTable(d, m),
-    'chart': () => { throw new Error("Chart generator not implemented in example"); }, // Placeholder
+    'chart': makeChart,
     'grid': (d = 0, m = 2) => makeBox(d, m), // Using makeBox for Grid-like structure
     'spacer': () => { throw new Error("Spacer generator not implemented in example"); }, // Placeholder
     'timeline': makeTimeline,
@@ -431,7 +483,6 @@ const componentGenerators: { [key: string]: (depth?: number, maxDepth?: number) 
     'carousel': (d = 0, m = 2) => makeCarousel(d, m),
     'card': (d = 0, m = 2) => makeCard(d, m),
     'text': makeText,
-    'code-block': () => { throw new Error("CodeBlock generator not implemented in example"); }, // Placeholder
     'image': makeImage,
     'video': makeVideo,
     'icon': makeIcon,
@@ -445,15 +496,7 @@ const componentGenerators: { [key: string]: (depth?: number, maxDepth?: number) 
     'tabs': (d = 0, m = 2) => makeTabs(d, m),
     'collapse-block': (d = 0, m = 2) => makeCollapseBlock(d, m),
     'reference': makeReference,
-    'error': () => { throw new Error("Error component generator not implemented in example"); }, // Placeholder
 };
-
-function generateRandomComponents(count = 3, maxDepth = 3): Component[] {
-    const out: Component[] = [];
-    for (let i = 0; i < count; i++) out.push(makeRandomComponent(0, maxDepth));
-    return out;
-}
-
 // ===== END TEST DATA GENERATOR =====
 
 const simulateDynamicResponse = async (
